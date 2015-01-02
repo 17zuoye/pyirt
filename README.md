@@ -9,6 +9,8 @@ run
 
 requirement
 ===========
+numpy
+scipy
 
 
 Example

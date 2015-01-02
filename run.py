@@ -25,8 +25,8 @@ opt_worker = solver.optimizer.irt_2PL()
 opt_worker.load_res_data(res_data)
 
 opt_worker.setparam(theta_vec)
-opt_worker.solve_beta_direct()
+opt_worker.solve_beta_NM()
 #print opt_worker.x
 
-opt_worker.solve_beta_gradient()
+opt_worker.solve_beta_BFGS()
 print opt_worker.x

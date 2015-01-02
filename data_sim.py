@@ -1,30 +1,26 @@
-import random
-root_dir = '/home/junchen/git/pyirt/'
+root_dir = 'C:/Users/junchen/Documents/GitHub/pyirt/'
 import sys
 # import matplotlib.pyplot as plt
 sys.path.insert(0,root_dir)
+import random
 import numpy as np
-import solver
+import utl
 
-num_sim = 1000
-theta_vec = np.linspace(-4.0,4.0, num = num_sim)
-beta = np.array([0.0])
-
-#prob_vec = [irt_fnc(theta, beta[0],alpha=2.0) for theta in theta_vec]
-#plt.plot(theta_vec, prob_vec)
-#plt.show()
+num_theta = 1000
+num_beta = 5
+theta_vec = np.linspace(-4.0, 4.0, num = num_theta)
+beta_vec = np.linspace(-2.0, 2.0, num = num_beta)
+response_matrix = np.zeros((num_theta, num_beta))
 
 '''
-The function checks out
-Now simulate the data
+create the matrix
 '''
+for i in range(num_theta):
+    for j in range(num_beta):
+        response_prob = utl.tools.irt_fnc(theta_vec[i], beta_vec[j])
+        response_matrix[i,j] = int(random.random() <= response_prob)
 
-# simulate one batch
-true_beta = 0.0
-# generate 100 items
-response_seq = [int(random.random() <= solver.optimizer.irt_2PL.irt_fnc(theta, true_beta)) for theta in theta_vec]
-
-root_dir = '/home/junchen/git/pyirt/'
-with open(root_dir + 'multi_theta_data.txt','w') as f:
-    for i in range(num_sim):
-        f.write('{},{}\n'.format(response_seq[i], theta_vec[i]))
+with open(root_dir + 'data/matrix_full_data.txt','w') as f:
+    for i in range(num_theta):
+        for j in range(num_beta):
+            f.write('{},{},{}\n'.format(response_matrix[i,j], theta_vec[i], beta_vec[j]))

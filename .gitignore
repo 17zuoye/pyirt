@@ -10,3 +10,6 @@ data
 repetition_graph
 documentation
 .ropeproject
+.project
+.pydevproject
+.git
