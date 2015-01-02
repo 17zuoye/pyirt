@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 class irt_2PL(object):
 
     def load_res_data(self, res_data):
-        self.res_data = res_data
+        self.res_data = np.array(res_data)
 
     def setparam(self, theta):
         self.theta = theta
@@ -26,26 +26,32 @@ class irt_2PL(object):
 
     # generate the likelihood function
     @staticmethod
-    def likelihood(res, theta, alpha, beta):
+    def likelihood(res_data, theta_vec, alpha, beta):
         #TODO: check the input
-
+        num_data = len(res_data)
         # figure out the number of right and wrong
-        num_right = sum(res)
-        num_wrong = len(res) - num_right
-        expComp = np.exp(-(alpha*theta+beta))
-        l =  num_right * np.log(1+expComp) - num_wrong * np.log(1-1.0/(1+expComp))
-        return l
+        y1 = res_data
+        y0 = 1.0-res_data
+        expComp_vec = [np.exp(-(alpha*theta+beta)) for theta in theta_vec]
+        likelihood_vec = [y1[i]* np.log(1+expComp_vec[i]) -
+                          y0[i] * np.log(1-1.0/(1+expComp_vec[i]))
+                          for i in range(num_data)]
+        return sum(likelihood_vec)
+
 
     @staticmethod
-    def gradient(res, theta, alpha, beta):
-        # res should be integers
-        y1 = np.array(res)
+    def gradient(res_data, theta_vec, alpha, beta):
+        # res should be numpy array
+        num_data = len(res_data)
+        y1 = res_data
         y0 = 1.0 - y1
-        negExpComp = np.exp(beta + alpha * theta)
-        temp = sum(y1-y0*negExpComp)
+        negExpComp_vec = [np.exp(beta + alpha * theta) for theta in theta_vec]
+        temp_vec = [y1[i]-y0[i]*negExpComp_vec[i] for i in range(num_data)]
+        gradient_vec = [-temp_vec[i]/negExpComp_vec[i] for i in range(num_data)]
+
         der = np.zeros(1)
         #der[0] = -(theta*temp)/(negExpComp+1)
-        der[0] = -temp/(negExpComp+1)
+        der[0] = sum(gradient_vec)
         return der
 
 
@@ -56,7 +62,8 @@ class irt_2PL(object):
         def target_fnc(beta):
             return self.likelihood(self.res_data, self.theta, alpha, beta)
 
-        res = minimize(target_fnc,x0, method = 'BFGS',options={'xtol':1e-8, 'disp':True})
+        target_fnc(1.0)
+        res = minimize(target_fnc,x0, method = 'nelder-mead',options={'xtol':1e-8, 'disp':True})
         self.x = res.x
 
     def solve_beta_gradient(self):
