@@ -1,0 +1,12 @@
+# use glob syntax.
+syntax: glob
+*~
+*.elc
+*.pyc
+*.json
+data/log
+data/input
+data
+repetition_graph
+documentation
+.ropeproject
