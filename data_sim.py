@@ -1,4 +1,4 @@
-root_dir = 'C:/Users/junchen/Documents/GitHub/pyirt/'
+root_dir = '/home/junchen/git/pyirt/'
 import sys
 # import matplotlib.pyplot as plt
 sys.path.insert(0,root_dir)

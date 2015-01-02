@@ -1,11 +1,11 @@
 import numpy as np
 from scipy.optimize import minimize
 
-#TODO: expand to multiple thetas
+#TODO: The BFGS method is not precise enough
 
 class irt_2PL(object):
     alpha = 1.0
-    
+
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
 
@@ -50,7 +50,7 @@ class irt_2PL(object):
             return self.likelihood(self.res_data, self.theta, self.alpha, beta)
 
         target_fnc(1.0)
-        res = minimize(target_fnc,x0, method = 'nelder-mead',options={'xtol':1e-8, 'disp':True})
+        res = minimize(target_fnc,x0, method = 'nelder-mead',options={'xtol':1e-8, 'disp':False})
         return res.x
 
     def solve_param_BFGS(self):
@@ -61,5 +61,6 @@ class irt_2PL(object):
         def target_der(beta):
             return self.gradient(self.res_data, self.theta, self.alpha, beta)
 
-        res = minimize(target_fnc,x0, method = 'BFGS', jac= target_der, options={'xtol':1e-8, 'disp':True})
+        res = minimize(target_fnc,x0, method = 'BFGS', jac= target_der,
+                       options={'disp':False})
         return res.x
