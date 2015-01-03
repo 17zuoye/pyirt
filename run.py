@@ -42,12 +42,16 @@ Set the environment for maximizer
 '''
 
 opt_worker = solver.optimizer.irt_2PL()
+opt_worker.setInitialGuess(0.0)
+opt_worker.setBounds([(-4.0,4.0)])
 
 for beta, data in data_dict.iteritems():
-
+    #if abs(beta-2.0) >= 0.001:
+    #    continue
     opt_worker.load_res_data(data['res_data'])
     opt_worker.setparam(data['theta'])
-    result = opt_worker.solve_param_BFGS()
+    result_l = opt_worker.solve_param_linear()
+    result_g = opt_worker.solve_param_gradient()
 
-    print beta, result[0]
+    print beta, result_l, result_g
 
