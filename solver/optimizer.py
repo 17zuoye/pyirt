@@ -8,7 +8,7 @@ from scipy.optimize import minimize
 #TODO: Enable the calibration for two parameter estimation
 np.seterr(over='raise')
 
-class irt_2PL(object):
+class irt_2PL_Optimizer(object):
 
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
