@@ -13,23 +13,23 @@ class irt_2PL_Optimizer(object):
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
 
-    def setparam(self, theta):
+    def set_theta(self, theta):
         self.theta = theta
 
-    def setBounds(self, bnds):
+    def set_bounds(self, bnds):
         self.bnds = bnds
 
-    def setInitialGuess(self, x0):
+    def set_initial_guess(self, x0):
         self.x0 = x0
 
     # generate the likelihood function
     @staticmethod
     def _likelihood(res_data, theta_vec, alpha, beta):
-        #TODO: check the input
-        num_data = len(res_data)
-        # figure out the number of right and wrong
-        y1 = res_data
-        y0 = 1.0-res_data
+        #TODO: check the input to be two list
+        num_data = len(res_data[0])
+        # for MMLE method, y1 and y0 will be expected count
+        y1 = res_data[0]
+        y0 = res_data[1]
         expComp_vec = []
         for theta in theta_vec:
             try:
@@ -48,9 +48,9 @@ class irt_2PL_Optimizer(object):
     @staticmethod
     def _gradient(res_data, theta_vec, alpha, beta):
         # res should be numpy array
-        num_data = len(res_data)
-        y1 = res_data
-        y0 = 1.0 - y1
+        num_data = len(res_data[0])
+        y1 = res_data[0]
+        y0 = res_data[1]
         negExpComp_vec = [np.exp(beta + alpha * theta) for theta in theta_vec]
         temp_vec = [y1[i]-y0[i]*negExpComp_vec[i] for i in range(num_data)]
         beta_gradient_vec = [-temp_vec[i]/negExpComp_vec[i] for i in range(num_data)]

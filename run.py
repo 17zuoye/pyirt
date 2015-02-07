@@ -56,14 +56,19 @@ Set the environment for maximizer
 '''
 '''
 opt_worker = solver.optimizer.irt_2PL_Optimizer()
-opt_worker.setInitialGuess((0.0,1.0))
-opt_worker.setBounds([(-4.0,4.0),(0.25,2.5)])
+opt_worker.set_initial_guess((0.0,1.0))
+opt_worker.set_bounds([(-4.0,4.0),(0.25,2.5)])
 
 for beta, data_vec in opt_data_dict.iteritems():
     for alpha, data in data_vec.iteritems():
 
-        opt_worker.load_res_data(data['res_data'])
-        opt_worker.setparam(data['theta'])
+        # generate app data where y1 and y0 are two separate list
+        y1 = data['res_data']
+        y0 = [1-x for x in y1]
+        input_data= [y1,y0]
+
+        opt_worker.load_res_data(input_data)
+        opt_worker.set_theta(data['theta'])
 
         result_l = opt_worker.solve_param_linear()
         result_g = opt_worker.solve_param_gradient()
@@ -77,8 +82,19 @@ test_res_data = res_data_array[sample_idx, ]
 test_theta_array = theta_array[sample_idx,]
 test_beta_array = beta_array[sample_idx,]
 
-sim_log_data = []
+log_data_set = []
+for i in range(len(test_res_data)):
+    # find the idx for item(beta)
+    # find the idx for user(theta)
+    item_idx = np.where(unique_beta==test_beta_array[i])[0][0]
+    user_idx = np.where(unique_theta==test_theta_array[i])[0][0]
+    log_data_set.append((user_idx,item_idx,test_res_data[i]))
 
+
+
+'''
+Joint estimation
+sim_log_data = []
 for i in range(num_theta):
     for j in range(num_beta):
        sample_idx = np.logical_and(test_beta_array == unique_beta[j],
@@ -86,8 +102,14 @@ for i in range(num_theta):
        log_res = test_res_data[sample_idx][0]
        sim_log_data.append((i,j,log_res))
 
+'''
 
+import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
 test_model = solver.model.IRT_MMLE_2PL()
+test_model.load_response_data(log_data_set)
 test_model.set_theta_prior()
-test_model.load_response_data(sim_log_data)
-test_model._expectation_step()
+test_model.solve_EM()
+
+# print out the result
+import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+
