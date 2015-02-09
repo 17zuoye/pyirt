@@ -17,3 +17,6 @@ run.py
 .pydevproject
 .git
 .pypirc
+intro-pypi-steps.txt
+
+#git ls-files -ci --exclude-standard -z | xargs -0 git rm --cached
