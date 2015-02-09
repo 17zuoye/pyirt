@@ -52,30 +52,6 @@ for beta in unique_beta:
 
         opt_data_dict[beta][alpha] = {'res_data':sample_res_data, 'theta':sample_theta}
         #print beta, alpha, np.mean(sample_res_data)
-'''
-Set the environment for maximizer
-'''
-'''
-opt_worker = solver.optimizer.irt_2PL_Optimizer()
-opt_worker.set_initial_guess((0.0,1.0))
-opt_worker.set_bounds([(-4.0,4.0),(0.25,2.5)])
-
-for beta, data_vec in opt_data_dict.iteritems():
-    for alpha, data in data_vec.iteritems():
-
-        # generate app data where y1 and y0 are two separate list
-        y1 = data['res_data']
-        y0 = [1-x for x in y1]
-        input_data= [y1,y0]
-
-        opt_worker.load_res_data(input_data)
-        opt_worker.set_theta(data['theta'])
-
-        result_l = opt_worker.solve_param_linear()
-        result_g = opt_worker.solve_param_gradient()
-
-        print [beta, alpha], result_l, result_g
-'''
 
 # reset the sample data
 sample_idx = alpha_array == alpha_array[1]
@@ -104,11 +80,11 @@ for i in range(num_theta):
        sim_log_data.append((i,j,log_res))
 
 '''
-test_data = utl.loader.from_matrix_to_list(root_dir+'data/LAST7.txt')
+test_data = utl.loader.from_matrix_to_list(root_dir+'data/LAST7.txt',sep='\t',is_uid=True)
 
 
 test_model = solver.model.IRT_MMLE_2PL()
-test_model.load_data(log_data_set)
+test_model.load_data(test_data)
 test_model.load_config()
 test_model.solve_EM()
 
