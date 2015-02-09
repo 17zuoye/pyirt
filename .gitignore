@@ -7,8 +7,11 @@ syntax: glob
 data/log
 data/input
 data
+literature
 repetition_graph
 documentation
+sandbox
+run.py
 .ropeproject
 .project
 .pydevproject
