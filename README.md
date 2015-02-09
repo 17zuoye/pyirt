@@ -6,7 +6,7 @@ A python library of IRT algorithm designed to cope with sparse data structure.
 The algorithm is described in details by Bradey Hanson(2000), see in the
 literature section. We are grateful to Mr.Hanson's word.
 
-** Current version is in early development stage. Use at your own peril. **
+- Current version is in early development stage. Use at your own peril.
 
 
 Model Specification
@@ -34,16 +34,23 @@ As for now, missing data are assumed to be ignorable.
 run
 ===
 from pyirt import *
+
 (1)load data
+
 data, param = utl.loader.load_sim_data('pyirt/data/sim_data.txt')
 
 (2) setup solver
+
 model = solver.model.IRT_MMLE_2PL()
+
 model.load_data(data)
+
 model.load_config()
+
 model.solve_EM()
 
 (3) print out the result
+
 utl.tools.parse_item_paramer(model.item_param_dict)
 
 
