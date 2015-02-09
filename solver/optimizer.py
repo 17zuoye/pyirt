@@ -61,15 +61,18 @@ class irt_2PL_Optimizer(object):
         return der
 
 
-    def solve_param_linear(self):
+    def solve_param_linear(self, is_constrained):
         # for now, temp set alpha to 1
         def target_fnc(x):
             beta = x[0]
             alpha = x[1]
             return self._likelihood(self.res_data, self.theta, alpha, beta)
-
-        res = minimize(target_fnc, self.x0, method = 'SLSQP',
-                       bounds=self.bnds, options={'disp':False})
+        if is_constrained:
+            res = minimize(target_fnc, self.x0, method = 'SLSQP',
+                        bounds=self.bnds, options={'disp':False})
+        else:
+            res = minimize(target_fnc, self.x0, method='nelder-mead',
+                           options={'xtol':1e-8, 'disp':False})
         return res.x
 
     def solve_param_gradient(self, is_constrained):

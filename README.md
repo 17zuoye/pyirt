@@ -7,21 +7,28 @@ The algorithm is described in details by Bradey Hanson(2000), see in the
 literature section. We are grateful to Mr.Hanson's word.
 
 
-run
-===
+Model Specification
+===================
 
 The current version only supports MMLE algorithm and unidimension two parameter
 IRT model.
 
+The prior distribution of theta is uniform rather than beta.
+
+
+run
+===
+
+
 The parameters are set in the config.cfg.
 
 An example:
-test_model = solver.model.IRT_MMLE_2PL()
-test_model.load_data(data)
-test_model.load_config()
-test_model.solve_EM()
+model = solver.model.IRT_MMLE_2PL()
+model.load_data(data)
+model.load_config()
+model.solve_EM()
 
-The result is in test_model.item_param_dict and test_model.user_param
+The result is in model.item_param_dict and model.user_param
 
 requirement
 ===========
@@ -51,6 +58,13 @@ Item.2 0.7 0.24
 Item.3 0.62 1.03
 Item.4 0.34 0.15
 Item.5 0.29 1.54
+
+0 0.53 1.24
+1 0.54 0.11
+2 0.7 0.77
+3 0.47 -0.09
+4 0.4 1.39
+
 
 
 Problem

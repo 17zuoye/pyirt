@@ -72,9 +72,13 @@ class IRT_MMLE_2PL(object):
         boundary = {'alpha':[alpha_min,alpha_max], 'beta':[beta_min,beta_max]}
 
         jump_prob = config.getfloat('solver','jump_prob')
+        solver_type = config.get('solver','type')
         is_constrained = config.getint('solver','is_constrained')==1
+        max_iter = config.getint('solver','max_iter')
+        tol = config.getfloat('solver','tol')
 
-        self._init_solver_param(is_constrained, boundary, jump_prob)
+        self._init_solver_param(is_constrained, boundary,
+                                jump_prob, solver_type, max_iter, tol)
 
 
     def solve_EM(self):
@@ -88,12 +92,33 @@ class IRT_MMLE_2PL(object):
         self.posterior_theta_distr = np.zeros((self.num_user, self.num_theta))
 
         #TODO: enable the stopping condition
-        for iter_no in range(5):
+        num_iter = 1
+        self.ell_list = []
+        ell_t0 = 0
+        while True:
             self._exp_step()
             self._max_step()
 
-        # when the algorithm converge, use MAP to get the theta estimation
-        self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
+            self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
+
+            ell = self.__calc_data_likelihood()
+            self.ell_list.append(ell)
+
+            # if the algorithm improves, then ell > ell_t0
+            if ell_t0 > ell:
+                print('Likelihood descrease, stops.')
+                break
+
+            if ell - ell_t0 <= self.tol:
+                print('EM converged')
+                break
+            # update the stop condition
+            ell_t0 = ell
+            num_iter += 1
+
+            if (num_iter > self.max_iter) :
+                print('EM does not converge within max iteration')
+                break
 
 
     '''
@@ -155,7 +180,12 @@ class IRT_MMLE_2PL(object):
             opt_worker.load_res_data(input_data)
 
             # solve by L-BFGS-B
-            est_param = opt_worker.solve_param_gradient(self.is_constrained)
+            if self.solver_type == 'BFGS':
+                est_param = opt_worker.solve_param_gradient(self.is_constrained)
+            elif self.solver_type == 'linear':
+                est_param = opt_worker.solve_param_linear(self.is_constrained)
+            else:
+                raise Exception('Unknown solver type')
 
             # update
             self.item_param_dict[eid]['beta'] = est_param[0]
@@ -179,12 +209,16 @@ class IRT_MMLE_2PL(object):
         self.eid_vec = self.item2user_dict.keys()
         self.num_item = len(self.eid_vec)
 
-    def _init_solver_param(self, is_constrained, boundary, jump_prob ):
+    def _init_solver_param(self, is_constrained, boundary,
+                           jump_prob, solver_type, max_iter, tol):
         # initialize bounds
         self.is_constrained = is_constrained
         self.alpha_bound = boundary['alpha']
         self.beta_bound =  boundary['beta']
         self.jump_prob = jump_prob  ## used in max step
+        self.solver_type = solver_type
+        self.max_iter = max_iter
+        self.tol = tol
 
     def _init_item_param(self):
         self.item_param_dict = {}
@@ -284,6 +318,22 @@ class IRT_MMLE_2PL(object):
 
 
 
+    def __calc_data_likelihood(self):
+        # calculate the likelihood for the data set
+
+        ell = 0
+        for i in range(self.num_user):
+            uid = self.uid_vec[i]
+            theta = self.theta_vec[i]
+            # find all the eid
+            for log in self.user2item_dict[uid]:
+                eid = log[0]
+                atag = log[1]
+                alpha = self.item_param_dict[eid]['alpha']
+                beta = self.item_param_dict[eid]['beta']
+
+                ell += utl.tools.log_likelihood_2PL(atag, theta, alpha, beta)
+        return ell
 
 
 

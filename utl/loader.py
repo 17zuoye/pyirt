@@ -51,6 +51,24 @@ def from_matrix_to_list(indata_file, sep=',',header=False, is_uid=False):
     return result_list
 
 
+def load_sim_data(sim_data_file):
+    # this function loads the simulation data for testing
+    # the sim format is
+    #(result, uid, eid, theta, beta, alpha)
+    test_data = []
+    test_param = {}
+    # the outputs are [a] solver readable dataset, [b] item parameter
+    with open(sim_data_file, 'r') as f:
+        for line in f:
+            if line.strip() == '':
+                continue
+
+            result, uid, eid, theta, beta, alpha= line.strip().split(',')
+            test_data.append((int(uid), int(eid), int(result)))
+            if eid not in test_param:
+                test_param[eid]={'alpha':float(alpha), 'beta':float(beta)}
+    return test_data, test_param
+
 
 
 
