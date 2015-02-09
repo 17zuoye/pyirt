@@ -10,6 +10,7 @@ The current version only deals with unidimension theta
 '''
 import numpy as np
 import collections as cos
+import ConfigParser
 import os, sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_dir)
@@ -25,7 +26,7 @@ class IRT_MMLE_2PL(object):
     (2) set parameter
     (3) solve
     '''
-    def load_response_data(self, res_data_list):
+    def load_data(self, res_data_list):
         # the input data N*3 array,
         # (uid, eid, atag)
         #TODO: input check
@@ -53,21 +54,35 @@ class IRT_MMLE_2PL(object):
         self.item2user_dict = item2user_dict
 
 
-    def set_theta_prior(self, theta_min=-4, theta_max = 4, num_theta = 25):
+    def load_config(self):
+        config = ConfigParser.RawConfigParser()
+        config.readfp(open(root_dir+'/config.cfg'))
 
-        self.theta_prior_val = np.linspace(theta_min, theta_max, num = num_theta)
-        self.num_theta = len(self.theta_prior_val)
-        if self.num_theta != num_theta:
-            raise Exception('Theta initialization failed')
-        # store the prior density
-        self.theta_density = np.ones(num_theta)/num_theta
+        # load user item
+        theta_min = config.getfloat('user', 'min_theta')
+        theta_max = config.getfloat('user', 'max_theta')
+        num_theta = config.getint('user','num_theta')
+        self._init_user_param(theta_min, theta_max, num_theta)
+
+        # load the solver
+        alpha_min = config.getfloat('item', 'min_alpha')
+        alpha_max = config.getfloat('item', 'max_alpha')
+        beta_min = config.getfloat('item', 'min_beta')
+        beta_max = config.getfloat('item', 'max_beta')
+        boundary = {'alpha':[alpha_min,alpha_max], 'beta':[beta_min,beta_max]}
+
+        jump_prob = config.getfloat('solver','jump_prob')
+        is_constrained = config.getint('solver','is_constrained')==1
+
+        self._init_solver_param(is_constrained, boundary, jump_prob)
 
 
     def solve_EM(self):
         # create the inner parameters
+        # currently item parameter requires no setup
         self._init_sys_param()
         self._init_item_param()
-        self._init_solver_param()
+
         # initialize some intermediate variables used in the E step
         self._init_right_wrong_map()
         self.posterior_theta_distr = np.zeros((self.num_user, self.num_theta))
@@ -115,8 +130,10 @@ class IRT_MMLE_2PL(object):
         #### [A] max for item parameter
         opt_worker = solver.optimizer.irt_2PL_Optimizer()
         # the boundary is universal
-        opt_worker.set_bounds([(self.beta_bound[0],  self.beta_bound[1]),
-                              (self.alpha_bound[0], self.alpha_bound[1])])
+        if self.is_constrained:
+            opt_worker.set_bounds([(self.beta_bound[0],  self.beta_bound[1]),
+                                (self.alpha_bound[0], self.alpha_bound[1])])
+
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
 
@@ -138,7 +155,7 @@ class IRT_MMLE_2PL(object):
             opt_worker.load_res_data(input_data)
 
             # solve by L-BFGS-B
-            est_param = opt_worker.solve_param_gradient()
+            est_param = opt_worker.solve_param_gradient(self.is_constrained)
 
             # update
             self.item_param_dict[eid]['beta'] = est_param[0]
@@ -162,16 +179,26 @@ class IRT_MMLE_2PL(object):
         self.eid_vec = self.item2user_dict.keys()
         self.num_item = len(self.eid_vec)
 
-    def _init_solver_param(self):
+    def _init_solver_param(self, is_constrained, boundary, jump_prob ):
         # initialize bounds
-        self.alpha_bound = [0.25,2.0]
-        self.beta_bound = [-4.0,4.0]
-        self.jump_prob = 0.2  ## used in max step
+        self.is_constrained = is_constrained
+        self.alpha_bound = boundary['alpha']
+        self.beta_bound =  boundary['beta']
+        self.jump_prob = jump_prob  ## used in max step
 
     def _init_item_param(self):
         self.item_param_dict = {}
         for eid in self.eid_vec:
             self.item_param_dict[eid] = {'alpha':1.0, 'beta':0.0}
+
+    def _init_user_param(self, theta_min, theta_max, num_theta):
+
+        self.theta_prior_val = np.linspace(theta_min, theta_max, num = num_theta)
+        self.num_theta = len(self.theta_prior_val)
+        if self.num_theta != num_theta:
+            raise Exception('Theta initialization failed')
+        # store the prior density
+        self.theta_density = np.ones(num_theta)/num_theta
 
 
     def _init_right_wrong_map(self):

@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0,root_dir)
 import solver
 import numpy as np
+import utl
 
 with open(root_dir + 'data/matrix_full_data.txt','r') as f:
     res_data = []
@@ -103,13 +104,16 @@ for i in range(num_theta):
        sim_log_data.append((i,j,log_res))
 
 '''
+test_data = utl.loader.from_matrix_to_list(root_dir+'data/LAST7.txt')
 
-import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+
 test_model = solver.model.IRT_MMLE_2PL()
-test_model.load_response_data(log_data_set)
-test_model.set_theta_prior()
+test_model.load_data(log_data_set)
+test_model.load_config()
 test_model.solve_EM()
 
 # print out the result
-import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+utl.tools.parse_item_paramer(test_model.item_param_dict)
+
+
 

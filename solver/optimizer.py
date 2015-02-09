@@ -72,7 +72,7 @@ class irt_2PL_Optimizer(object):
                        bounds=self.bnds, options={'disp':False})
         return res.x
 
-    def solve_param_gradient(self):
+    def solve_param_gradient(self, is_constrained):
         # for now, temp set alpha to 1
 
         def target_fnc(x):
@@ -85,7 +85,13 @@ class irt_2PL_Optimizer(object):
             alpha = x[1]
             return self._gradient(self.res_data, self.theta, alpha, beta)
 
-        res = minimize(target_fnc, self.x0, method = 'L-BFGS-B',
-                       jac= target_der, bounds = self.bnds,
-                       options={'disp':False})
+        if is_constrained:
+            res = minimize(target_fnc, self.x0, method = 'L-BFGS-B',
+                        jac= target_der, bounds = self.bnds,
+                        options={'disp':False})
+        else:
+            res = minimize(target_fnc, self.x0, method = 'BFGS',
+                           jac=target_der,
+                           options={'disp':False})
+
         return res.x

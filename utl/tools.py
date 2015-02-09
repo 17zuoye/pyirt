@@ -25,3 +25,9 @@ def logsum(logp):
     logSump = w+ np.log(sum(np.exp(logp-w)))
     return logSump
 
+
+def parse_item_paramer(item_param_dict):
+    for eid, param in item_param_dict.iteritems():
+        print eid, np.round(param['alpha'],decimals=2), np.round(param['beta'],decimals=2)
+
+
