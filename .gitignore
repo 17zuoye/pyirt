@@ -16,3 +16,4 @@ run.py
 .project
 .pydevproject
 .git
+.pypirc
