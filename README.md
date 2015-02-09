@@ -6,7 +6,7 @@ A python library of IRT algorithm designed to cope with sparse data structure.
 The algorithm is described in details by Bradey Hanson(2000), see in the
 literature section. We are grateful to Mr.Hanson's word.
 
-## Current version is in early development stage. Use at your own peril. ## 
+** Current version is in early development stage. Use at your own peril. **
 
 
 Model Specification
@@ -18,18 +18,32 @@ IRT model.
 The prior distribution of theta is uniform rather than beta.
 
 
+What's New
+==========
+
+IRT model is developed for offline test that has few missing data. However,
+when try to calibrate item parameters for online testing bank, such assumption
+breaks down and the algorithm runs into sparse data problem, as well as severe
+missing data problem.
+
+This pacakge uses list rather than matrix format to deal with sparse data.
+
+As for now, missing data are assumed to be ignorable.
+
+
 run
 ===
 from pyirt import *
-# load data
+(1)load data
 data, param = utl.loader.load_sim_data('pyirt/data/sim_data.txt')
-# setup solver
+
+(2) setup solver
 model = solver.model.IRT_MMLE_2PL()
 model.load_data(data)
 model.load_config()
 model.solve_EM()
 
-# print out the result
+(3) print out the result
 utl.tools.parse_item_paramer(model.item_param_dict)
 
 
@@ -43,7 +57,7 @@ numpy,scipy
 
 Performance Check
 =======
-There are some discrepancy needs to be closed
+There are some discrepancies need to be closed
 
 
 ##LAST7 example:
