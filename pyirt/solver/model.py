@@ -283,7 +283,7 @@ class IRT_MMLE_2PL(object):
                     alpha = self.item_param_dict[eid]['alpha']
                     beta = self.item_param_dict[eid]['beta']
                     atag = log_list[m][1]
-                    ell += utl.tools.log_likelihood_2PL(atag, theta, alpha, beta)
+                    ell += utl.tools.log_likelihood_2PL(atag, 1.0-atag, theta, alpha, beta)
                 # now update the density
                 likelihood_vec[k] = ell
 
@@ -332,7 +332,7 @@ class IRT_MMLE_2PL(object):
                 alpha = self.item_param_dict[eid]['alpha']
                 beta = self.item_param_dict[eid]['beta']
 
-                ell += utl.tools.log_likelihood_2PL(atag, theta, alpha, beta)
+                ell += utl.tools.log_likelihood_2PL(atag, 1-atag, theta, alpha, beta)
         return ell
 
 

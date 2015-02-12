@@ -12,4 +12,4 @@ Keywords: IRT,EM algorithm
 Platform: any
 Classifier: Intended Audience :: Developers
 Classifier: Operating System :: OS Independent
-Classifier: Programming Language :: Python 2.7
+Classifier: Programming Language :: Python :: 2.7
