@@ -1,13 +1,30 @@
-from distutils.core import setup
+from setuptools import setup
+
 setup(
   name = 'pyirt',
-  packages = ['pyirt'], # this must be the same as the name above
-  version = '0.1.1',
+  version = '0.1.2',
+  packages = ['pyirt',
+		'pyirt/solver',
+		'pyirt/utl',
+		'pyirt/test',
+	     ],
+  url = 'https://github.com/junchenfeng/pyirt',
+  license='MIT',
   description = 'A python implementation of EM IRT, specializing in sparse massive data',
   author = 'Junchen Feng',
   author_email = 'frankfeng.pku@gmail.com',
-  url = 'https://github.com/junchenfeng/pyirt', # use the URL to the github repo
-  download_url = 'https://github.com/junchenfeng/pyirt/tarball/0.1.1', # I'll explain this in a second
-  keywords = ['IRT', 'EM algorithm'], # arbitrary keywords
-  classifiers = [],
+  include_package_data=True,
+  download_url = 'https://github.com/junchenfeng/pyirt/tarball/0.1.2', 
+  keywords = ['IRT', 'EM algorithm'], 
+  zip_safe=False,
+  platforms='any',
+  install_requires=[
+   'numpy',
+   'scipy',
+  ],
+  classifiers = [
+        'Intended Audience :: Developers',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python 2.7',
+  ],
 )
