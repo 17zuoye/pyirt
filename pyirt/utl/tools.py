@@ -16,24 +16,22 @@ def irt_fnc(theta, beta, alpha=1.0, c=0.0):
 
 def log_likelihood_2PL(y1, y0, theta, alpha, beta):
 
-    # y1 and y0 may not be 1 or 0 since it could also be expected counts
-
-    #if alpha <= 0.0:
-    #    raise ValueError('Slope/Alpha should not be zero or negative.')
     expComp = np.exp(-(alpha*theta + beta));
 
-    ell =  y1*np.log(1.0/(1.0+expComp)) + (1.0-y1)*np.log(1.0-1.0/(1.0+expComp)) ;
+    ell =  y1*np.log(1.0/(1.0+expComp)) + y0*np.log(1.0-1.0/(1.0+expComp)) ;
 
     return ell
 
-def log_likelihood_2PL_gradience(y1, y0, theta, alpha, beta):
-
+def log_likelihood_2PL_gradient(y1, y0, theta, alpha, beta):
+    #TODO: could be organized into matrix
+    # It is the gradient of the log likelihood, not the NEGATIVE log likelihood
     grad = np.zeros(2)
 
     temp = np.exp(beta + alpha * theta)
-    grad[0] = (-y1+y0*temp)/(1+temp)
-    grad[1] = theta*der[0]
-
+    beta_grad = -(-y1+y0*temp)/(1+temp)
+    alpha_grad = theta*beta_grad
+    grad[0] = beta_grad
+    grad[1] = alpha_grad
     return grad
 
 def logsum(logp):

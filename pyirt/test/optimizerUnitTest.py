@@ -7,23 +7,26 @@ import math
 import numpy as np
 
 
-class TestLinearSolver(unittest.TestCase):
+class TestSolver(unittest.TestCase):
     def setUp(self):
         # initialize the data
-        n = 5000
+        n = 10000
         self.alpha = 1.5
         self.beta = -2.0
         theta_vec=np.random.normal(loc = 0.0, scale =1.0, size = n)
         y1 = []
         y0 = []
         for i in range(n):
+            # generate the two parameter likelihood
             prob = utl.tools.irt_fnc(theta_vec[i], self.beta, self.alpha)
-            if prob>np.random.uniform():
+            # generate the response sequence
+            if prob >= np.random.uniform():
                 y1.append(1.0)
                 y0.append(0.0)
             else:
                 y1.append(0.0)
                 y0.append(1.0)
+        # the response format follows the solver API
         response_data = [y1, y0]
 
         # initialize optimizer
@@ -31,11 +34,30 @@ class TestLinearSolver(unittest.TestCase):
         self.solver.load_res_data(response_data)
         self.solver.set_theta(theta_vec)
 
-    def test_quadratic(self):
+    def test_linear_unconstrained(self):
         self.solver.set_initial_guess((0.0,1.0))
-        est_param_linear = self.solver.solve_param_linear(False)
-        #est_param_gradient = self.solver.solve_param_gradient(False)
-        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+        est_param = self.solver.solve_param_linear(is_constrained = False)
+        self.assertTrue(abs(est_param[0]-self.beta)<0.05 and abs(est_param[1]-self.alpha)<0.05)
+
+    def test_linear_constrained(self):
+        self.solver.set_initial_guess((0.0,1.0))
+        self.solver.set_bounds([(-4.0,4.0),(0.25,2)])
+        est_param = self.solver.solve_param_linear(is_constrained = True)
+        self.assertTrue(abs(est_param[0]-self.beta)<0.05 and abs(est_param[1]-self.alpha)<0.05)
+
+
+
+    #def test_gradient_unconstrained(self):
+    #    self.solver.set_initial_guess((0.0,2.0))
+    #    est_param = self.solver.solve_param_gradient(is_constrained = False)
+    #    import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+
+    def test_gradient_constrained(self):
+        self.solver.set_initial_guess((0.0,1.0))
+        self.solver.set_bounds([(-4.0,4.0),(0.25,2)])
+        est_param = self.solver.solve_param_gradient(is_constrained = True)
+        self.assertTrue(abs(est_param[0]-self.beta)<0.1 and abs(est_param[1]-self.alpha)<0.1)
+
 
 if __name__ == '__main__':
     unittest.main()

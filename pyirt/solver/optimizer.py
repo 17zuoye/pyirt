@@ -42,11 +42,12 @@ class irt_2PL_Optimizer(object):
 
         if sum(y1<0)>0 or  sum(y0<0)>0:
             raise ValueError('y1 or y0 contains negative count.')
-
+        # this is the likelihood
         likelihood_vec = [utl.tools.log_likelihood_2PL(y1[i],y0[i],theta_vec[i],
                                                      alpha, beta) \
                           for i in range(num_data)]
-        ell = sum(likelihood_vec)
+        # transform into negative likelihood
+        ell = -sum(likelihood_vec)
 
         return ell
 
@@ -57,21 +58,17 @@ class irt_2PL_Optimizer(object):
         y0 = res_data[1]
         num_data = len(y1)
 
-        negExpComp_vec = [np.exp(beta + alpha * theta) for theta in theta_vec]
-
-        temp_vec = [y1[i]-y0[i]*negExpComp_vec[i] for i in range(num_data)]
-
-        beta_gradient_vec = [-temp_vec[i]/(1+negExpComp_vec[i]) for i in range(num_data)]
-
-        alpha_gradient_vec = [theta_vec[i]*beta_gradient_vec[i] for i in range(num_data)]
 
         der = np.zeros(2)
-        der[0] = sum(beta_gradient_vec)
-        der[1] = sum(alpha_gradient_vec)
+        for i in range(num_data):
+            # the toolbox calculate the gradient of the log likelihood,
+            # but the algorithm needs that of the negative ll
+            der -= utl.tools.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta)
+        #grad = [ -utl.tools.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta) for i in range(num_data)]
         #TODO: This is actually a bit of cheating
-        if abs(der[0]) >50 or abs(der[1])>50:
-            ratio = max(der/50)
-            der = der/ratio
+        #if abs(der[0]) >50 or abs(der[1])>50:
+        #    ratio = max(abs(der/50))
+        #    der = der/ratio
         return der
 
 
@@ -81,15 +78,22 @@ class irt_2PL_Optimizer(object):
             beta = x[0]
             alpha = x[1]
             return self._likelihood(self.res_data, self.theta, alpha, beta)
+
         if is_constrained:
             res = minimize(target_fnc, self.x0, method = 'SLSQP',
                         bounds=self.bnds, options={'disp':False})
         else:
             res = minimize(target_fnc, self.x0, method='nelder-mead',
-                           options={'xtol':1e-4, 'disp':False})
-        #if not res.success:
-            #import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
-            #raise Exception('Algorithm failed, because '+ res.message)
+                           options={'xtol':1e-3, 'disp':False})
+
+        # deal with expcetions
+        if not res.success:
+            if not is_constrained and \
+                    res.message == 'Maximum number of function evaluations has been exceeded.':
+                raise Exception('Optimizer fails to find solution. Try constrained search.')
+            else:
+                raise Exception('Algorithm failed because '+ res.message)
+
         return res.x
 
     def solve_param_gradient(self, is_constrained):

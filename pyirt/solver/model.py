@@ -94,23 +94,25 @@ class IRT_MMLE_2PL(object):
         #TODO: enable the stopping condition
         num_iter = 1
         self.ell_list = []
-        ell_t0 = 0
+        ell_t0 = float("inf")
         while True:
             self._exp_step()
             self._max_step()
 
             self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
 
-            ell = self.__calc_data_likelihood()
+            # the goal is to minimize the negative likelihood
+            ell = -self.__calc_data_likelihood()
             self.ell_list.append(ell)
 
             # if the algorithm improves, then ell > ell_t0
-            if ell_t0 > ell:
-                print('Likelihood descrease, stops.')
+            if ell_t0 < ell:
+                #TODO: needs to roll back if the likelihood decrease
+                print('Likelihood descrease, stops at iteration %d.' % num_iter)
                 break
 
-            if ell - ell_t0 <= self.tol:
-                print('EM converged')
+            if ell_t0>ell and ell_t0 - ell <= self.tol:
+                print('EM converged at iteration %d.' % num_iter)
                 break
             # update the stop condition
             ell_t0 = ell
@@ -155,9 +157,10 @@ class IRT_MMLE_2PL(object):
         #### [A] max for item parameter
         opt_worker = solver.optimizer.irt_2PL_Optimizer()
         # the boundary is universal
-        if self.is_constrained:
-            opt_worker.set_bounds([(self.beta_bound[0],  self.beta_bound[1]),
-                                (self.alpha_bound[0], self.alpha_bound[1])])
+        # the boundary is set regardless of the constrained option because the
+        # constrained search serves as backup for outlier cases
+        opt_worker.set_bounds([(self.beta_bound[0],  self.beta_bound[1]),
+                            (self.alpha_bound[0], self.alpha_bound[1])])
 
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
@@ -180,10 +183,20 @@ class IRT_MMLE_2PL(object):
             opt_worker.load_res_data(input_data)
 
             # solve by L-BFGS-B
-            if self.solver_type == 'BFGS':
+            if self.solver_type == 'gradient':
                 est_param = opt_worker.solve_param_gradient(self.is_constrained)
             elif self.solver_type == 'linear':
-                est_param = opt_worker.solve_param_linear(self.is_constrained)
+                # if the alogrithm is nelder-mead and the optimization fails to
+                # converge, use the constrained version
+                try:
+                    est_param = opt_worker.solve_param_linear(self.is_constrained)
+                except Exception  as  e:
+                    if str(e) == 'Optimizer fails to find solution. Try constrained search.':
+                        est_param = opt_worker.solve_param_linear(True)
+
+                    else:
+                        raise e
+
             else:
                 raise Exception('Unknown solver type')
 
@@ -219,6 +232,8 @@ class IRT_MMLE_2PL(object):
         self.solver_type = solver_type
         self.max_iter = max_iter
         self.tol = tol
+        if solver_type == 'gradient' and is_constrained == False:
+            raise Exception('BFGS has to be constrained')
 
     def _init_item_param(self):
         self.item_param_dict = {}

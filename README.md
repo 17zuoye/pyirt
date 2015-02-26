@@ -64,7 +64,8 @@ numpy,scipy
 
 Performance Check
 =======
-There are some discrepancies need to be closed
+The likelihood is not stable in terms of converging. 
+To use max iteration improve the performance compared to the MIRT package
 
 
 ##LAST7 example:
@@ -82,17 +83,42 @@ Item, slope, intercept
 
 5 0.436 1.091 
 
-pyirt estimation:
+pyirt linear constrained estimation:
 
-1 0.41 1.42
+0 0.61 1.12
 
-2 0.7 0.24
+1 0.61 -0.01
 
-3 0.62 1.03
+2 0.75 0.63
 
-4 0.34 0.15
+3 0.55 -0.24
 
-5 0.29 1.54
+4 0.48 1.29
+
+
+pyirt likelihood convergence estimation (2 iterations):
+
+0 0.74 1.03
+
+1 0.73 -0.13
+
+2 0.83 0.54
+
+3 0.7 -0.39
+
+4 0.63 1.2
+
+pyirt 10 iteration estimation:
+
+0 0.42 1.58
+
+1 0.46 0.5
+
+2 0.66 1.3
+
+3 0.33 0.27
+
+4 0.32 1.65
 
 
 
