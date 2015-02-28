@@ -6,7 +6,7 @@ import solver, utl
 import math
 import numpy as np
 
-'''
+
 class TestItemSolver(unittest.TestCase):
     def setUp(self):
         # initialize the data
@@ -58,7 +58,7 @@ class TestItemSolver(unittest.TestCase):
         est_param = self.solver.solve_param_gradient(is_constrained = True)
         self.assertTrue(abs(est_param[0]-self.beta)<0.1 and abs(est_param[1]-self.alpha)<0.1)
 
-'''
+
 
 class TestUserSolver(unittest.TestCase):
     def setUp(self):

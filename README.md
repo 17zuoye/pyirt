@@ -65,69 +65,20 @@ numpy,scipy
 Performance Check
 =======
 The likelihood is not stable in terms of converging. 
-To use max iteration improve the performance compared to the MIRT package
+To use max iteration improve the performance compared to the MIRT/LTM package
 
-
-##LAST7 example:
-
-MIRT estimation: 
-Item, slope, intercept
-
-1 0.584 1.093 
-
-2 0.634 0.475 
-
-3 0.993 1.054 
-
-4 0.452 0.286 
-
-5 0.436 1.091 
-
-pyirt linear constrained estimation:
-
-0 0.61 1.12
-
-1 0.61 -0.01
-
-2 0.75 0.63
-
-3 0.55 -0.24
-
-4 0.48 1.29
-
-
-pyirt likelihood convergence estimation (2 iterations):
-
-0 0.74 1.03
-
-1 0.73 -0.13
-
-2 0.83 0.54
-
-3 0.7 -0.39
-
-4 0.63 1.2
-
-pyirt 10 iteration estimation:
-
-0 0.42 1.58
-
-1 0.46 0.5
-
-2 0.66 1.3
-
-3 0.33 0.27
-
-4 0.32 1.65
+Simulation shows that (with proper bounds), the pyirt is more stable in
+estimating the 2PL model when the alpha is within 0.25~3 and the beta is within
+-2~4. The performance improves because it prevents alpha and beta going too
+large when the item is too easy. 
 
 
 
-Problem
+ToDos
 ===========
 
-(1) The unconstrained solver cannot handle students that have all the answers right
-or all the answers wrong.
+(1) The solver cannot handle polytomous answers.
 
-(2) The solver cannot handle polytomous answers
+(2) The solver cannot handle multi-dimensional data.
 
-(3) The solver cannot handle multi-dimensional data
+(3) The solver cannot handle group constraints.
