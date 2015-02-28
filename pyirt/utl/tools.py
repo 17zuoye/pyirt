@@ -34,14 +34,37 @@ def log_likelihood_2PL_gradient(y1, y0, theta, alpha, beta):
     grad[1] = alpha_grad
     return grad
 
+def log_likelihood_factor_gradient(y1, y0, theta, alpha, beta):
+
+    temp = np.exp(beta + alpha * theta)
+    grad = -alpha*(-y1+y0*temp)/(1+temp)
+
+    return grad
+
+def log_likelihood_factor_hessian(y1, y0, theta, alpha, beta):
+    temp = np.exp(beta + alpha * theta)
+    hessian = - alpha**2*(y1+y0)*temp/(1+temp)**2
+    return hessian
+
+
 def logsum(logp):
     w = max(logp)
     logSump = w+ np.log(sum(np.exp(logp-w)))
     return logSump
 
 
-def parse_item_paramer(item_param_dict):
+def parse_item_paramer(item_param_dict, output_file = None):
+
+    if output_file is not None:
+        # open the file
+        out_fh = open(output_file,'w')
+
     for eid, param in item_param_dict.iteritems():
-        print eid, np.round(param['alpha'],decimals=2), np.round(param['beta'],decimals=2)
+        alpha_val = np.round(param['alpha'],decimals=2)
+        beta_val = np.round(param['beta'],decimals=2)
+        if output_file is None:
+            print eid, alpha_val, beta_val
+        else:
+            out_fh.write('{},{},{}\n'.format(eid, alpha_val, beta_val))
 
 

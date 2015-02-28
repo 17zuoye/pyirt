@@ -14,6 +14,6 @@ test_model.load_config()
 test_model.solve_EM()
 
 # print out the result
-utl.tools.parse_item_paramer(test_model.item_param_dict)
-for theta_hat in test_model.theta_vec:
-    print theta_hat
+utl.tools.parse_item_paramer(test_param, output_file = 'data/sim_true.txt')
+utl.tools.parse_item_paramer(test_model.item_param_dict, output_file = 'data/sim_est.txt')
+

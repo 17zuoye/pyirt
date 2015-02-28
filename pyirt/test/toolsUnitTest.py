@@ -54,9 +54,9 @@ class TestIrtFunctions(unittest.TestCase):
         for num in log_prob:
             exact_sum += math.exp(num)
         exact_sum = math.log(exact_sum)
-        self.assertTrue(abs(approx_sum-exact_sum)<0.0000000001)
+        self.assertTrue(abs(approx_sum-exact_sum)<1e-10)
 
-    def test_log_gradient(self):
+    def test_log_item_gradient(self):
         delta = 0.00001
         y1 = 1.0
         y0 = 2.0
@@ -71,9 +71,39 @@ class TestIrtFunctions(unittest.TestCase):
         # calculate
         calc_gradient = utl.tools.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta)
 
-        self.assertTrue(abs(calc_gradient[0] - true_gradient_approx_beta ) < 0.001)
-        self.assertTrue(abs(calc_gradient[1] - true_gradient_approx_alpha) < 0.001)
+        self.assertTrue(abs(calc_gradient[0] - true_gradient_approx_beta ) < 1e-4)
+        self.assertTrue(abs(calc_gradient[1] - true_gradient_approx_alpha) < 1e-4)
 
+
+    def test_log_factor_gradient(self):
+        delta = 0.00001
+        y1 = 1.0
+        y0 = 2.0
+        theta = -2.0
+        alpha = 1.0
+        beta = 0.0
+        # simulate the gradient
+        true_gradient_approx_theta = (utl.tools.log_likelihood_2PL(y1,y0,theta+delta,alpha,beta) - \
+            utl.tools.log_likelihood_2PL(y1,y0,theta,alpha,beta))/delta
+       # calculate
+        calc_gradient = utl.tools.log_likelihood_factor_gradient(y1,y0,theta,alpha,beta)
+
+        self.assertTrue(abs(calc_gradient - true_gradient_approx_theta ) < 1e-4)
+
+    def test_log_factor_hessian(self):
+        delta = 0.00001
+        y1 = 1.0
+        y0 = 2.0
+        theta = -2.0
+        alpha = 1.0
+        beta = 0.0
+        # simulate the gradient
+        true_hessian_approx_theta = (utl.tools.log_likelihood_factor_gradient(y1,y0,theta+delta,alpha,beta) - \
+            utl.tools.log_likelihood_factor_gradient(y1,y0,theta,alpha,beta))/delta
+       # calculate
+        calc_hessian = utl.tools.log_likelihood_factor_hessian(y1,y0,theta,alpha,beta)
+
+        self.assertTrue(abs(calc_hessian - true_hessian_approx_theta ) < 1e-4)
 
 if __name__ == '__main__':
     unittest.main()
