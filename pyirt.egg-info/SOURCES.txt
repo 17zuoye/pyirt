@@ -11,6 +11,8 @@ pyirt/solver/__init__.py
 pyirt/solver/model.py
 pyirt/solver/optimizer.py
 pyirt/test/__init__.py
+pyirt/test/modelUnitTest.py
+pyirt/test/optimizerUnitTest.py
 pyirt/test/toolsUnitTest.py
 pyirt/utl/__init__.py
 pyirt/utl/loader.py

@@ -219,6 +219,12 @@ class irt_factor_optimizer(object):
         res = minimize(target_fnc, self.x0, method='Newton-CG',
                 jac=target_der, hess=target_hess,
                 options={'xtol': 1e-8, 'disp': False})
-
+        if not res.success:
+            if res.message == 'Desired error not necessarily achieved due to precision loss.':
+                # TODO:still returns a result. Something is wrong with the BFGS
+                # though
+                pass
+            else:
+                raise Exception('Algorithm failed, because ' + res.message)
         return res.x
 

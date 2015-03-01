@@ -17,6 +17,7 @@ sys.path.insert(0, root_dir)
 
 import utl
 import solver
+import time
 
 class IRT_MMLE_2PL(object):
 
@@ -40,23 +41,45 @@ class IRT_MMLE_2PL(object):
         item2user_dict = cos.defaultdict(list)
         user2item_dict = cos.defaultdict(list)
 
-        # the user
+        # the eid and uid may not be continuous which the rest of the code
+        # depends on
+        # Thus do a internal mapping here
+        all_uids = [log[0] for log in res_data_list]
+        all_eids = [log[1] for log in res_data_list]
+        unique_uids = list(set(all_uids))
+        unique_eids = list(set(all_eids))
+        self.uid_map = {}
+        self.uid_map_reverse = {}
+        self.eid_map = {}
+        self.eid_map_reverse = {}
+        uid_cnt = 0
+        eid_cnt = 0
+        for uid in unique_uids:
+            self.uid_map[uid] = uid_cnt
+            self.uid_map_reverse[uid_cnt] = uid
+            uid_cnt += 1
+        for eid in unique_eids:
+            self.eid_map[eid] = eid_cnt
+            self.eid_map_reverse[eid_cnt] = eid
+            eid_cnt += 1
+
         for log in res_data_list:
-            eid = log[1]
-            uid = log[0]
+            new_eid = self.eid_map[log[1]]
+            new_uid = self.uid_map[log[0]]
             atag = log[2]
             # add to the data dictionary
-            item2user_dict[eid].append((uid, atag))
-            user2item_dict[uid].append((eid, atag))
+            item2user_dict[new_eid].append((new_uid, atag))
+            user2item_dict[new_uid].append((new_eid, atag))
 
         # update the class
         self.user2item_dict = user2item_dict
         self.item2user_dict = item2user_dict
+        self.num_log = len(res_data_list)
 
 
-    def load_config(self):
+    def load_config(self, config_dir):
         config = ConfigParser.RawConfigParser()
-        config.readfp(open(root_dir+'/config.cfg'))
+        config.readfp(open(config_dir))
 
         # load user item
         theta_min = config.getfloat('user', 'min_theta')
@@ -94,33 +117,57 @@ class IRT_MMLE_2PL(object):
         #TODO: enable the stopping condition
         num_iter = 1
         self.ell_list = []
-        ell_t0 = float("inf")
+        avg_prob_t0 = 0
         while True:
+            # add in time block
+            start_time = time.time()
             self._exp_step()
+            print("--- E step: %f secs ---" % np.round((time.time()-start_time)))
+
+            start_time = time.time()
             self._max_step()
+            print("--- M step: %f secs ---" % np.round((time.time()-start_time)))
 
             self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
 
-            # the goal is to minimize the negative likelihood
-            ell = -self.__calc_data_likelihood()
-            self.ell_list.append(ell)
+            # the goal is to maximize the "average" probability
+            avg_prob = np.exp(self.__calc_data_likelihood()/self.num_log)
+            self.ell_list.append(avg_prob)
+            print(avg_prob)
 
             # if the algorithm improves, then ell > ell_t0
-            if ell_t0 < ell:
+            if avg_prob_t0 > avg_prob:
                 #TODO: needs to roll back if the likelihood decrease
                 print('Likelihood descrease, stops at iteration %d.' % num_iter)
                 break
 
-            if ell_t0>ell and ell_t0 - ell <= self.tol:
+            if avg_prob_t0 < avg_prob and avg_prob - avg_prob_t0 <= self.tol:
                 print('EM converged at iteration %d.' % num_iter)
                 break
             # update the stop condition
-            ell_t0 = ell
+            avg_prob_t0 = avg_prob
             num_iter += 1
 
             if (num_iter > self.max_iter) :
                 print('EM does not converge within max iteration')
                 break
+
+    def get_item_param(self):
+        # need to remap the inner id to the outer id
+        item_param_dict = {}
+        for new_eid, param in self.item_param_dict.iteritems():
+            old_eid = self.eid_map_reverse[new_eid]
+            item_param_dict[old_eid] = param
+
+        return item_param_dict
+
+    def get_user_param(self):
+        user_param_dict = {}
+        for i in range(self.num_user):
+            old_uid = self.uid_map_reverse[i]
+            user_param_dict[old_uid] = self.theta_vec[i]
+
+        return user_param_dict
 
 
     '''
@@ -193,7 +240,6 @@ class IRT_MMLE_2PL(object):
                 except Exception  as  e:
                     if str(e) == 'Optimizer fails to find solution. Try constrained search.':
                         est_param = opt_worker.solve_param_linear(True)
-
                     else:
                         raise e
 
@@ -349,7 +395,6 @@ class IRT_MMLE_2PL(object):
 
                 ell += utl.tools.log_likelihood_2PL(atag, 1-atag, theta, alpha, beta)
         return ell
-
 
 
 

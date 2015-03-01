@@ -17,7 +17,6 @@ def irt_fnc(theta, beta, alpha=1.0, c=0.0):
 def log_likelihood_2PL(y1, y0, theta, alpha, beta):
 
     expComp = np.exp(-(alpha*theta + beta));
-
     ell =  y1*np.log(1.0/(1.0+expComp)) + y0*np.log(1.0-1.0/(1.0+expComp)) ;
 
     return ell
@@ -35,7 +34,6 @@ def log_likelihood_2PL_gradient(y1, y0, theta, alpha, beta):
     return grad
 
 def log_likelihood_factor_gradient(y1, y0, theta, alpha, beta):
-
     temp = np.exp(beta + alpha * theta)
     grad = -alpha*(-y1+y0*temp)/(1+temp)
 
