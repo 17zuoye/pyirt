@@ -22,6 +22,12 @@ class TestIrtFunctions(unittest.TestCase):
         # cancel out by higher beta
         prob = utl.tools.irt_fnc(1.0,-1.0,1.0)
         self.assertEqual(prob, 0.5)
+        # test for c as limit situation
+        prob = utl.tools.irt_fnc(-99,0.0,1.0, 0.25)
+        self.assertTrue(abs(prob-0.25)<1e-5)
+        prob = utl.tools.irt_fnc(99,0.0,1.0, 0.25)
+        self.assertTrue(abs(prob-1.0)<1e-5)
+
 
     def test_log_likelihood(self):
         # raise error
@@ -45,6 +51,13 @@ class TestIrtFunctions(unittest.TestCase):
         ll = utl.tools.log_likelihood_2PL(0.0,1.0,-1.1617696779178492,1.0,0.0)
 
         self.assertTrue(abs(ll + 0.27226272946920399)<0.0000000001)
+
+        # check if it handles c correctly
+        ll = utl.tools.log_likelihood_2PL(1.0, 0.0, 0.0,1.0,0.0, 0.25)
+        self.assertEqual(ll, math.log(0.625))
+        ll = utl.tools.log_likelihood_2PL(0.0, 1.0, 0.0,1.0,0.0,0.25)
+        self.assertEqual(ll, math.log(0.375))
+
 
     def test_log_sum(self):
         # add up a list of small values
@@ -74,6 +87,18 @@ class TestIrtFunctions(unittest.TestCase):
         self.assertTrue(abs(calc_gradient[0] - true_gradient_approx_beta ) < 1e-4)
         self.assertTrue(abs(calc_gradient[1] - true_gradient_approx_alpha) < 1e-4)
 
+        # simulate the gradient with c
+        c = 0.25
+        true_gradient_approx_beta = (utl.tools.log_likelihood_2PL(y1,y0,theta,alpha,beta+delta,c) - \
+            utl.tools.log_likelihood_2PL(y1,y0,theta,alpha,beta,c))/delta
+        true_gradient_approx_alpha =  (utl.tools.log_likelihood_2PL(y1,y0,theta,alpha+delta,beta,c) - \
+            utl.tools.log_likelihood_2PL(y1,y0,theta,alpha,beta,c))/delta
+        # calculate
+        calc_gradient = utl.tools.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta,c)
+
+        self.assertTrue(abs(calc_gradient[0] - true_gradient_approx_beta ) < 1e-4)
+        self.assertTrue(abs(calc_gradient[1] - true_gradient_approx_alpha) < 1e-4)
+
 
     def test_log_factor_gradient(self):
         delta = 0.00001
@@ -89,6 +114,17 @@ class TestIrtFunctions(unittest.TestCase):
         calc_gradient = utl.tools.log_likelihood_factor_gradient(y1,y0,theta,alpha,beta)
 
         self.assertTrue(abs(calc_gradient - true_gradient_approx_theta ) < 1e-4)
+
+
+        # simulate the gradient
+        c = 0.25
+        true_gradient_approx_theta = (utl.tools.log_likelihood_2PL(y1,y0,theta+delta,alpha,beta,c) - \
+            utl.tools.log_likelihood_2PL(y1,y0,theta,alpha,beta,c))/delta
+       # calculate
+        calc_gradient = utl.tools.log_likelihood_factor_gradient(y1,y0,theta,alpha,beta,c)
+
+        self.assertTrue(abs(calc_gradient - true_gradient_approx_theta ) < 1e-4)
+
 
     def test_log_factor_hessian(self):
         delta = 0.00001

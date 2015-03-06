@@ -20,6 +20,9 @@ class irt_2PL_Optimizer(object):
     def set_theta(self, theta):
         self.theta = theta
 
+    def set_c(self, c):
+        self.c = c
+
     def set_bounds(self, bnds):
         self.bnds = bnds
 
@@ -28,7 +31,7 @@ class irt_2PL_Optimizer(object):
 
     # generate the likelihood function
     @staticmethod
-    def _likelihood(res_data, theta_vec, alpha, beta):
+    def _likelihood(res_data, theta_vec, alpha, beta, c):
         # for MMLE method, y1 and y0 will be expected count
         y1 = res_data[0]
         y0 = res_data[1]
@@ -44,7 +47,7 @@ class irt_2PL_Optimizer(object):
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
         likelihood_vec = [utl.tools.log_likelihood_2PL(y1[i],y0[i],theta_vec[i],
-                                                     alpha, beta) \
+                                                     alpha, beta,c) \
                           for i in range(num_data)]
         # transform into negative likelihood
         ell = -sum(likelihood_vec)
@@ -52,7 +55,7 @@ class irt_2PL_Optimizer(object):
         return ell
 
     @staticmethod
-    def _gradient(res_data, theta_vec, alpha, beta):
+    def _gradient(res_data, theta_vec, alpha, beta, c):
         # res should be numpy array
         y1 = res_data[0]
         y0 = res_data[1]
@@ -62,7 +65,7 @@ class irt_2PL_Optimizer(object):
         for i in range(num_data):
             # the toolbox calculate the gradient of the log likelihood,
             # but the algorithm needs that of the negative ll
-            der -= utl.tools.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta)
+            der -= utl.tools.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta, c)
         #grad = [ -utl.tools.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta) for i in range(num_data)]
         #TODO: This is actually a bit of cheating
         #if abs(der[0]) >50 or abs(der[1])>50:
@@ -76,7 +79,7 @@ class irt_2PL_Optimizer(object):
         def target_fnc(x):
             beta = x[0]
             alpha = x[1]
-            return self._likelihood(self.res_data, self.theta, alpha, beta)
+            return self._likelihood(self.res_data, self.theta, alpha, beta, self.c)
 
         if is_constrained:
             res = minimize(target_fnc, self.x0, method = 'SLSQP',
@@ -101,12 +104,12 @@ class irt_2PL_Optimizer(object):
         def target_fnc(x):
             beta = x[0]
             alpha = x[1]
-            return self._likelihood(self.res_data, self.theta, alpha, beta)
+            return self._likelihood(self.res_data, self.theta, alpha, beta, self.c)
 
         def target_der(x):
             beta = x[0]
             alpha = x[1]
-            return self._gradient(self.res_data, self.theta, alpha, beta)
+            return self._gradient(self.res_data, self.theta, alpha, beta, self.c)
 
         if is_constrained:
             res = minimize(target_fnc, self.x0, method = 'L-BFGS-B',

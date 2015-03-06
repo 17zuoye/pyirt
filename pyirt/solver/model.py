@@ -94,14 +94,17 @@ class IRT_MMLE_2PL(object):
         beta_max = config.getfloat('item', 'max_beta')
         boundary = {'alpha':[alpha_min,alpha_max], 'beta':[beta_min,beta_max]}
 
-        jump_prob = config.getfloat('solver','jump_prob')
         solver_type = config.get('solver','type')
         is_constrained = config.getint('solver','is_constrained')==1
         max_iter = config.getint('solver','max_iter')
         tol = config.getfloat('solver','tol')
 
         self._init_solver_param(is_constrained, boundary,
-                                jump_prob, solver_type, max_iter, tol)
+                                solver_type, max_iter, tol)
+
+    def load_guess_param(self, guess_param_dict):
+        # C is a dict
+        self.guess_param_dict = guess_param_dict
 
 
     def solve_EM(self):
@@ -128,7 +131,12 @@ class IRT_MMLE_2PL(object):
             self._max_step()
             print("--- M step: %f secs ---" % np.round((time.time()-start_time)))
 
-            self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
+            self.__calc_theta()
+
+            '''
+            Exp
+            '''
+            self.update_guess_param()
 
             # the goal is to maximize the "average" probability
             avg_prob = np.exp(self.__calc_data_likelihood()/self.num_log)
@@ -216,12 +224,11 @@ class IRT_MMLE_2PL(object):
             eid = self.eid_vec[j]
             # set the initial guess as a mixture of current value and a new
             # start to avoid trap in local maximum
-            if np.random.uniform() >= self.jump_prob:
-                initial_guess_val = (self.item_param_dict[eid]['beta'],
-                                    self.item_param_dict[eid]['alpha'])
-            else:
-                initial_guess_val = (0, 1)
+            initial_guess_val = (self.item_param_dict[eid]['beta'],
+                                self.item_param_dict[eid]['alpha'])
+
             opt_worker.set_initial_guess(initial_guess_val)
+            opt_worker.set_c(self.item_param_dict[eid]['c'])
 
             # assemble the expected data
             expected_right_count = self.item_expected_right_bytheta[:,j]
@@ -268,13 +275,18 @@ class IRT_MMLE_2PL(object):
         self.eid_vec = self.item2user_dict.keys()
         self.num_item = len(self.eid_vec)
 
+        # for update guess paramter
+        self.eid2uid_dict = {}
+        for eid in self.eid_vec:
+            uids = [x[0] for x in self.item2user_dict[eid]]
+            self.eid2uid_dict[eid] = uids
+
     def _init_solver_param(self, is_constrained, boundary,
-                           jump_prob, solver_type, max_iter, tol):
+                           solver_type, max_iter, tol):
         # initialize bounds
         self.is_constrained = is_constrained
         self.alpha_bound = boundary['alpha']
         self.beta_bound =  boundary['beta']
-        self.jump_prob = jump_prob  ## used in max step
         self.solver_type = solver_type
         self.max_iter = max_iter
         self.tol = tol
@@ -284,7 +296,9 @@ class IRT_MMLE_2PL(object):
     def _init_item_param(self):
         self.item_param_dict = {}
         for eid in self.eid_vec:
-            self.item_param_dict[eid] = {'alpha':1.0, 'beta':0.0}
+            self.item_param_dict[eid] = {'alpha':1.0, 'beta':0.0,
+                                         'c':self.guess_param_dict[eid]['c'],
+                                         'update_c':self.guess_param_dict[eid]['update_c']}
 
     def _init_user_param(self, theta_min, theta_max, num_theta):
 
@@ -310,8 +324,6 @@ class IRT_MMLE_2PL(object):
                     temp['wrong'].append(uid)
             # update
             self.right_wrong_map[eid] = temp
-
-
 
 
     def __update_theta_distr(self):
@@ -343,8 +355,9 @@ class IRT_MMLE_2PL(object):
                     eid = log_list[m][0]
                     alpha = self.item_param_dict[eid]['alpha']
                     beta = self.item_param_dict[eid]['beta']
+                    c = self.item_param_dict[eid]['c']
                     atag = log_list[m][1]
-                    ell += utl.tools.log_likelihood_2PL(atag, 1.0-atag, theta, alpha, beta)
+                    ell += utl.tools.log_likelihood_2PL(atag, 1.0-atag, theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
 
@@ -392,13 +405,53 @@ class IRT_MMLE_2PL(object):
                 atag = log[1]
                 alpha = self.item_param_dict[eid]['alpha']
                 beta = self.item_param_dict[eid]['beta']
+                c = self.item_param_dict[eid]['c']
 
-                ell += utl.tools.log_likelihood_2PL(atag, 1-atag, theta, alpha, beta)
+                ell += utl.tools.log_likelihood_2PL(atag, 1-atag, theta, alpha, beta, c)
         return ell
 
+    def __calc_theta(self):
+        self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
 
 
+    '''
+    Experimental
+    '''
+    def set_param_extra(self, alpha_bnd, beta_bnd):
+        # this function is mainly used for parameter search purpose
 
+        self.alpha_bound = alpha_bnd
+        self.beta_bound = beta_bnd
+
+    def update_guess_param(self):
+        # at the end of each repetition, try to update the distribution of c
+        '''
+        C is only identified at the extreme right tail, which is not possible in the EM environment
+        Use the average performance of the worst ability
+        '''
+
+
+        # find the user that are in the bottom 10%
+        cut_threshold = np.percentile(self.theta_vec, 6)
+        bottom_group = [i for i in range(self.num_user) if self.theta_vec[i] <= cut_threshold]
+
+        # now loop through all the items
+        for eid in self.eid_vec:
+
+            if self.item_param_dict[eid]['update_c']:
+                # find the user group
+                user_group = self.eid2uid_dict[eid]
+                guessers = set(user_group).intersection(bottom_group)
+                num_guesser = len(guessers)
+                if num_guesser>10:
+                    # average them
+                    rw_list = self.right_wrong_map[eid]
+                    right_cnt = 0.0
+                    for uid in guessers:
+                        if uid in rw_list['right']:
+                            right_cnt += 1
+                    # update c
+                    self.item_param_dict[eid]['c'] = right_cnt/num_guesser
 
 
 
