@@ -296,9 +296,13 @@ class IRT_MMLE_2PL(object):
     def _init_item_param(self):
         self.item_param_dict = {}
         for eid in self.eid_vec:
+            # need to call the old eid
+            old_eid = self.eid_map_reverse[eid]
+            c = self.guess_param_dict[old_eid]['c']
+            is_update = self.guess_param_dict[old_eid]['update_c']
+
             self.item_param_dict[eid] = {'alpha':1.0, 'beta':0.0,
-                                         'c':self.guess_param_dict[eid]['c'],
-                                         'update_c':self.guess_param_dict[eid]['update_c']}
+                                         'c':c, 'update_c':is_update}
 
     def _init_user_param(self, theta_min, theta_max, num_theta):
 
@@ -363,6 +367,7 @@ class IRT_MMLE_2PL(object):
 
             # ell  = p(param|x), full joint = logp(param|x)+log(x)
             log_joint_prob_vec  = likelihood_vec + np.log(self.theta_density)
+
             # calculate the posterior
             # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
             marginal = utl.tools.logsum(log_joint_prob_vec)
@@ -431,8 +436,8 @@ class IRT_MMLE_2PL(object):
         '''
 
 
-        # find the user that are in the bottom 10%
-        cut_threshold = np.percentile(self.theta_vec, 6)
+        # find the user that are in the bottom 5%
+        cut_threshold = np.percentile(self.theta_vec, 5)
         bottom_group = [i for i in range(self.num_user) if self.theta_vec[i] <= cut_threshold]
 
         # now loop through all the items
@@ -451,7 +456,8 @@ class IRT_MMLE_2PL(object):
                         if uid in rw_list['right']:
                             right_cnt += 1
                     # update c
-                    self.item_param_dict[eid]['c'] = right_cnt/num_guesser
+                    # cap at 0.5
+                    self.item_param_dict[eid]['c'] = min(right_cnt/num_guesser, 0.5)
 
 
 

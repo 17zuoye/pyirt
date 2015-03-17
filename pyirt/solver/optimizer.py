@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
+from scipy.optimize import minimize_scalar
 
 import os, sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -129,12 +130,13 @@ class irt_factor_optimizer(object):
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
 
-    def set_item_parameter(self, alpha_vec, beta_vec):
+    def set_item_parameter(self, alpha_vec, beta_vec, c_vec):
         if len(alpha_vec) != len(beta_vec):
             raise ValueError('The alpha vec and the beta vec does not match in length.')
 
         self.alpha_vec = alpha_vec
         self.beta_vec  = beta_vec
+        self.c_vec = c_vec
 
     def set_bounds(self, bnds):
         self.bnds = bnds
@@ -143,7 +145,7 @@ class irt_factor_optimizer(object):
         self.x0 = x0
 
     @staticmethod
-    def _likelihood(res_data, theta, alpha_vec, beta_vec):
+    def _likelihood(res_data, theta, alpha_vec, beta_vec, c_vec):
         # for MMLE method, y1 and y0 will be expected count
         y1 = res_data[0]
         y0 = res_data[1]
@@ -158,7 +160,7 @@ class irt_factor_optimizer(object):
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
         likelihood_vec = [utl.tools.log_likelihood_2PL(y1[i],y0[i],theta,
-                                                     alpha_vec[i], beta_vec[i]) \
+                                                     alpha_vec[i], beta_vec[i],c_vec[i]) \
                           for i in range(num_data)]
         # transform into negative likelihood
         ell = -sum(likelihood_vec)
@@ -166,7 +168,7 @@ class irt_factor_optimizer(object):
         return ell
 
     @staticmethod
-    def _gradient(res_data, theta, alpha_vec, beta_vec):
+    def _gradient(res_data, theta, alpha_vec, beta_vec, c_vec):
         # res should be numpy array
         y1 = res_data[0]
         y0 = res_data[1]
@@ -174,11 +176,11 @@ class irt_factor_optimizer(object):
 
         der = 0.0
         for i in range(num_data):
-            der -= utl.tools.log_likelihood_factor_gradient(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i])
+            der -= utl.tools.log_likelihood_factor_gradient(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
         return der
 
     @staticmethod
-    def _hessian(res_data, theta, alpha_vec, beta_vec):
+    def _hessian(res_data, theta, alpha_vec, beta_vec, c_vec):
         # res should be numpy array
         y1 = res_data[0]
         y0 = res_data[1]
@@ -186,14 +188,14 @@ class irt_factor_optimizer(object):
 
         hes = 0.0
         for i in range(num_data):
-            hes -= utl.tools.log_likelihood_factor_hessian(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i])
+            hes -= utl.tools.log_likelihood_factor_hessian(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
         return hes
 
 
     def solve_param_linear(self, is_constrained):
         # for now, temp set alpha to 1
         def target_fnc(x):
-            return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec)
+            return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
 
         if is_constrained:
             res = minimize(target_fnc, self.x0, method = 'SLSQP',
@@ -212,13 +214,35 @@ class irt_factor_optimizer(object):
 
         return res.x
 
+    def solve_param_gradient(self, is_constrained):
+        # for now, temp set alpha to 1
+        def target_fnc(x):
+            return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+        def target_der(x):
+            return self._gradient(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+
+        if is_constrained:
+            res = minimize(target_fnc, self.x0, method = 'L-BFGS-B',
+                        jac= target_der, bounds = self.bnds,
+                        options={'disp':False})
+        else:
+            res = minimize(target_fnc, self.x0, method = 'BFGS',
+                           jac=target_der,
+                           options={'disp':False})
+
+        if not res.success:
+            raise Exception('Algorithm failed.')
+
+        return res.x
+
     def solve_param_hessian(self):
         def target_fnc(x):
-            return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec)
+            return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
         def target_der(x):
-            return self._gradient(self.res_data, x, self.alpha_vec, self.beta_vec)
+            return self._gradient(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
         def target_hess(x):
-            return self._hessian(self.res_data, x, self.alpha_vec, self.beta_vec)
+            return self._hessian(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+
         res = minimize(target_fnc, self.x0, method='Newton-CG',
                 jac=target_der, hess=target_hess,
                 options={'xtol': 1e-8, 'disp': False})
@@ -231,3 +255,9 @@ class irt_factor_optimizer(object):
                 raise Exception('Algorithm failed, because ' + res.message)
         return res.x
 
+
+    def solve_param_scalar(self):
+        def target_fnc(x):
+            return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+        res = minimize_scalar(target_fnc, bounds=self.bnds, method='bounded')
+        return res.x

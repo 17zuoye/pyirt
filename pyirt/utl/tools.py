@@ -43,9 +43,11 @@ def log_likelihood_factor_gradient(y1, y0, theta, alpha, beta, c=0.0):
 
     return grad
 
-def log_likelihood_factor_hessian(y1, y0, theta, alpha, beta):
-    temp = np.exp(beta + alpha * theta)
-    hessian = - alpha**2*(y1+y0)*temp/(1+temp)**2
+def log_likelihood_factor_hessian(y1, y0, theta, alpha, beta, c=0.0):
+    x = np.exp(beta + alpha * theta)
+    #hessian = - alpha**2*(y1+y0)*temp/(1+temp)**2
+    hessian  =  alpha**2*x/(1+x)**2*( y1*(1-c)*(c-x**2)/(c+x)**2 -y0)
+
     return hessian
 
 

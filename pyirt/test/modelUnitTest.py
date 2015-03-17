@@ -24,10 +24,6 @@ test_model.load_data(run_data)
 test_model.load_config('config.cfg')
 test_model.load_guess_param(guess_param_dict)
 
-
-
-
-
 test_model.solve_EM()
 
 # print out the result

@@ -68,6 +68,7 @@ class TestUserSolver(unittest.TestCase):
         self.theta = 1.5
         self.alpha_vec = np.random.random(n)+1
         self.beta_vec  = np.random.normal(loc = 0.0, scale =2.0, size = n)
+        self.c_vec = np.zeros(n)
         y1 = []
         y0 = []
         for i in range(n):
@@ -86,20 +87,31 @@ class TestUserSolver(unittest.TestCase):
         # initialize optimizer
         self.solver = solver.optimizer.irt_factor_optimizer()
         self.solver.load_res_data(response_data)
-        self.solver.set_item_parameter(self.alpha_vec, self.beta_vec)
-        self.solver.set_bounds((-6,6))
+        self.solver.set_item_parameter(self.alpha_vec, self.beta_vec, self.c_vec)
+        self.solver.set_bounds([(-6,6)])
 
     def test_linear_unconstrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_linear(is_constrained = False)
         self.assertTrue(abs(est_param-self.theta)<0.1)
 
-    #def test_hessian_unconstrained(self):
-    #    self.solver.set_initial_guess(0.0)
-    #    est_param = self.solver.solve_param_hessian()
-    #    self.assertTrue(abs(est_param-self.theta)<0.1)
+    def test_gradient_constrained(self):
+        self.solver.set_initial_guess(0.0)
+        self.solver.set_bounds([(-6,6)])
+        est_param = self.solver.solve_param_gradient(is_constrained = True)
+        self.assertTrue(abs(est_param-self.theta)<0.1)
+
+    def test_hessian_unconstrained(self):
+        self.solver.set_initial_guess(0.0)
+        est_param = self.solver.solve_param_hessian()
+        self.assertTrue(abs(est_param-self.theta)<0.1)
 
 
+    def test_scalar_constrained(self):
+        self.solver.set_initial_guess(0.0)
+        self.solver.set_bounds((-6,6))
+        est_param = self.solver.solve_param_scalar()
+        self.assertTrue(abs(est_param-self.theta)<0.1)
 
 
 if __name__ == '__main__':

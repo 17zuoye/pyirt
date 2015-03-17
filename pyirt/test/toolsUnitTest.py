@@ -133,11 +133,12 @@ class TestIrtFunctions(unittest.TestCase):
         theta = -2.0
         alpha = 1.0
         beta = 0.0
+        c = 0.25
         # simulate the gradient
-        true_hessian_approx_theta = (utl.tools.log_likelihood_factor_gradient(y1,y0,theta+delta,alpha,beta) - \
-            utl.tools.log_likelihood_factor_gradient(y1,y0,theta,alpha,beta))/delta
+        true_hessian_approx_theta = (utl.tools.log_likelihood_factor_gradient(y1,y0,theta+delta,alpha,beta,c) - \
+            utl.tools.log_likelihood_factor_gradient(y1,y0,theta,alpha,beta,c))/delta
        # calculate
-        calc_hessian = utl.tools.log_likelihood_factor_hessian(y1,y0,theta,alpha,beta)
+        calc_hessian = utl.tools.log_likelihood_factor_hessian(y1,y0,theta,alpha,beta,c)
 
         self.assertTrue(abs(calc_hessian - true_hessian_approx_theta ) < 1e-4)
 
