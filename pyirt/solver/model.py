@@ -77,9 +77,9 @@ class IRT_MMLE_2PL(object):
         self.num_log = len(res_data_list)
 
 
-    def load_config(self, config_dir):
-        config = ConfigParser.RawConfigParser()
-        config.readfp(open(config_dir))
+    def load_config(self, config):
+        # The config object has to be passed in because hdfs file system does
+        # not load target file
 
         # load user item
         theta_min = config.getfloat('user', 'min_theta')

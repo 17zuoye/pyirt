@@ -65,6 +65,8 @@ increases less than the threshold, stops.
 Example
 =========
 from pyirt import *
+import ConfigParser
+import io
 
 (1) Load data
 
@@ -86,7 +88,12 @@ model = solver.model.IRT _MMLE _2PL()
 
 model.load _data(data)
 
-model.load _config('config.cfg')
+** the config file has to be read in by io system to accomendate hdfs system** 
+
+config = ConfigParser.RawConfigParser(allow _no _value=True)
+config.readfp(io.BytesIO(config-text))
+
+model.load _config(config)
 
 model.load _guess _param(guess _param _dict)
 
