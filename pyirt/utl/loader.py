@@ -7,6 +7,7 @@ where uid is the idx for test taker, eid is the idx for items
 It is set in this way to deal with the sparsity in the massive dataset.
 
 '''
+import numpy as np
 
 def from_matrix_to_list(indata_file, sep=',',header=False, is_uid=False):
     # assume the data takes the following format
@@ -66,10 +67,37 @@ def load_sim_data(sim_data_file):
             result, uid, eid, theta, beta, alpha= line.strip().split(',')
             test_data.append((int(uid), int(eid), int(result)))
             if eid not in test_param:
-                test_param[eid]={'alpha':float(alpha), 'beta':float(beta)}
+                test_param[int(eid)]={'alpha':float(alpha), 'beta':float(beta)}
     return test_data, test_param
 
+def load_dbm(dmb_val):
+    # the format is 'id,flag;'*n
+    pairs = dmb_val.split(';')
+    log_list = []
+    # last element is empty
+    for i in xrange(len(pairs)-1):
+        idstr,flagstr = pairs[i].split(',')
+        log_list.append((int(idstr), int(flagstr)))
+    return log_list
 
 
+
+
+def parse_item_paramer(item_param_dict, output_file = None):
+
+    if output_file is not None:
+        # open the file
+        out_fh = open(output_file,'w')
+
+    sorted_eids = sorted(item_param_dict.keys())
+
+    for eid in sorted_eids:
+        param = item_param_dict[eid]
+        alpha_val = np.round(param['alpha'],decimals=2)
+        beta_val = np.round(param['beta'],decimals=2)
+        if output_file is None:
+            print eid, alpha_val, beta_val
+        else:
+            out_fh.write('{},{},{}\n'.format(eid, alpha_val, beta_val))
 
 

@@ -1,12 +1,12 @@
 Metadata-Version: 1.1
 Name: pyirt
-Version: 0.1.4
+Version: 0.1.5
 Summary: A python implementation of EM IRT, specializing in sparse massive data
 Home-page: https://github.com/junchenfeng/pyirt
 Author: Junchen Feng
 Author-email: frankfeng.pku@gmail.com
 License: MIT
-Download-URL: https://github.com/junchenfeng/pyirt/tarball/0.1.4
+Download-URL: https://github.com/junchenfeng/pyirt/tarball/0.1.5
 Description: UNKNOWN
 Keywords: IRT,EM,big data
 Platform: any

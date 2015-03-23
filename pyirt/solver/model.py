@@ -9,8 +9,6 @@ The current version only deals with unidimension theta
 
 '''
 import numpy as np
-import collections as cos
-import ConfigParser
 import os, sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_dir)
@@ -18,6 +16,7 @@ sys.path.insert(0, root_dir)
 import utl
 import solver
 import time
+import bsddb
 
 class IRT_MMLE_2PL(object):
 
@@ -27,54 +26,66 @@ class IRT_MMLE_2PL(object):
     (2) set parameter
     (3) solve
     '''
-    def load_data(self, res_data_list):
-        # the input data N*3 array,
-        # (uid, eid, atag)
-        #TODO: input check
+
+    def _process_data(self, uids, eids, atags, tmp_dir):
+        '''
+        Memory efficiency optimization
+        (1) The matrix is sparse, so use three parallel lists for data storage.
+        parallel lists are more memory eficient than tuple
+        (2) For fast retrieval, turn three parallel list into dictionary by uid and eid
+        (3) Python dictionary takes up a lot of memory, so use dbm
+
+        # for more details, see
+        http://stackoverflow.com/questions/2211965/python-memory-usage-loading-large-dictionaries-in-memory
+
+        # The design is originally described by Chaoqun Fu
+        '''
 
         '''
-        Because the algorithm reads a sparse list,
-        It is necessary to cache the index methods
+        Need the following dictionary for esitmation routine
+        (1) item -> user: key: eid, value: (uid, atag)
+        (2) user -> item: key: uid, value: (eid, atag)
         '''
-        # parse the data into dictionary, key by item id
-        # because the M step is done by
-        item2user_dict = cos.defaultdict(list)
-        user2item_dict = cos.defaultdict(list)
+        # always rewrite
+        self.item2user_db = bsddb.hashopen(tmp_dir+'/item2user.db', 'n')
+        self.user2item_db = bsddb.hashopen(tmp_dir+'/user2item.db', 'n')
+        self.num_log = len(uids)
 
-        # the eid and uid may not be continuous which the rest of the code
-        # depends on
-        # Thus do a internal mapping here
-        all_uids = [log[0] for log in res_data_list]
-        all_eids = [log[1] for log in res_data_list]
-        unique_uids = list(set(all_uids))
-        unique_eids = list(set(all_eids))
-        self.uid_map = {}
-        self.uid_map_reverse = {}
-        self.eid_map = {}
-        self.eid_map_reverse = {}
-        uid_cnt = 0
-        eid_cnt = 0
-        for uid in unique_uids:
-            self.uid_map[uid] = uid_cnt
-            self.uid_map_reverse[uid_cnt] = uid
-            uid_cnt += 1
-        for eid in unique_eids:
-            self.eid_map[eid] = eid_cnt
-            self.eid_map_reverse[eid_cnt] = eid
-            eid_cnt += 1
+        for i in xrange(self.num_log):
+            eid  = eids[i]
+            uid  = uids[i]
+            atag = atags[i]
+            # if not initiated, init with empty str
+            if str(eid) not in self.item2user_db:
+                self.item2user_db['%d'%eid] = ''
+            if str(uid) not in self.user2item_db:
+                self.user2item_db['%d'%uid] = ''
 
-        for log in res_data_list:
-            new_eid = self.eid_map[log[1]]
-            new_uid = self.uid_map[log[0]]
-            atag = log[2]
-            # add to the data dictionary
-            item2user_dict[new_eid].append((new_uid, atag))
-            user2item_dict[new_uid].append((new_eid, atag))
+            self.item2user_db['%d'%eid] += '%d,%d;' %(uid, atag)
+            self.user2item_db['%d'%uid] += '%d,%d;' %(eid, atag)
 
-        # update the class
-        self.user2item_dict = user2item_dict
-        self.item2user_dict = item2user_dict
-        self.num_log = len(res_data_list)
+
+    def loadFromHandle(self, fp, sep = ',', tmp_dir = '/tmp/pyirt/'):
+        # Default format is comma separated files, three columns are uid, eid,
+        # atag
+        # Only int is allowed within the environment
+        uids  = []
+        eids  = []
+        atags = []
+
+        for line in fp:
+            if line == '':
+                continue
+            uidstr,eidstr,atagstr = line.strip().split(sep)
+            uids.append(int(uidstr))
+            eids.append(int(eidstr))
+            atags.append(int(atagstr))
+
+        # process it
+        # check if the tmp directory is accessible
+        if not os.path.isdir(tmp_dir):
+            os.mkdir(tmp_dir)
+        self._process_data(uids, eids, atags, tmp_dir)
 
 
     def load_config(self, config):
@@ -136,7 +147,7 @@ class IRT_MMLE_2PL(object):
             '''
             Exp
             '''
-            self.update_guess_param()
+            #self.update_guess_param()
 
             # the goal is to maximize the "average" probability
             avg_prob = np.exp(self.__calc_data_likelihood()/self.num_log)
@@ -162,18 +173,13 @@ class IRT_MMLE_2PL(object):
 
     def get_item_param(self):
         # need to remap the inner id to the outer id
-        item_param_dict = {}
-        for new_eid, param in self.item_param_dict.iteritems():
-            old_eid = self.eid_map_reverse[new_eid]
-            item_param_dict[old_eid] = param
-
-        return item_param_dict
+        return self.item_param_dict
 
     def get_user_param(self):
         user_param_dict = {}
-        for i in range(self.num_user):
-            old_uid = self.uid_map_reverse[i]
-            user_param_dict[old_uid] = self.theta_vec[i]
+        for i in xrange(self.num_user):
+            uid = self.uid_vec[i]
+            user_param_dict[uid] = self.theta_vec[i]
 
         return user_param_dict
 
@@ -220,8 +226,7 @@ class IRT_MMLE_2PL(object):
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
 
-        for j in range(self.num_item):
-            eid = self.eid_vec[j]
+        for eid in self.eid_vec:
             # set the initial guess as a mixture of current value and a new
             # start to avoid trap in local maximum
             initial_guess_val = (self.item_param_dict[eid]['beta'],
@@ -231,6 +236,7 @@ class IRT_MMLE_2PL(object):
             opt_worker.set_c(self.item_param_dict[eid]['c'])
 
             # assemble the expected data
+            j = self.eid_vec.index(eid)
             expected_right_count = self.item_expected_right_bytheta[:,j]
             expected_wrong_count = self.item_expected_wrong_bytheta[:,j]
             input_data = [expected_right_count,expected_wrong_count]
@@ -270,16 +276,16 @@ class IRT_MMLE_2PL(object):
     '''
     def _init_sys_param(self):
         # system parameter
-        self.uid_vec = self.user2item_dict.keys()
+        self.uid_vec = [int(x) for x in self.user2item_db.keys()]
         self.num_user = len(self.uid_vec)
-        self.eid_vec = self.item2user_dict.keys()
+        self.eid_vec = [int(x) for x in self.item2user_db.keys()]
         self.num_item = len(self.eid_vec)
 
         # for update guess paramter
-        self.eid2uid_dict = {}
-        for eid in self.eid_vec:
-            uids = [x[0] for x in self.item2user_dict[eid]]
-            self.eid2uid_dict[eid] = uids
+        #self.eid2uid_dict = {}
+        #for eid in self.eid_vec:
+        #    uids = [x[0] for x in self.item2user_dict[eid]]
+        #    self.eid2uid_dict[eid] = uids
 
     def _init_solver_param(self, is_constrained, boundary,
                            solver_type, max_iter, tol):
@@ -297,9 +303,8 @@ class IRT_MMLE_2PL(object):
         self.item_param_dict = {}
         for eid in self.eid_vec:
             # need to call the old eid
-            old_eid = self.eid_map_reverse[eid]
-            c = self.guess_param_dict[old_eid]['c']
-            is_update = self.guess_param_dict[old_eid]['update_c']
+            c = self.guess_param_dict[eid]['c']
+            is_update = self.guess_param_dict[eid]['update_c']
 
             self.item_param_dict[eid] = {'alpha':1.0, 'beta':0.0,
                                          'c':c, 'update_c':is_update}
@@ -316,18 +321,19 @@ class IRT_MMLE_2PL(object):
 
     def _init_right_wrong_map(self):
         self.right_wrong_map = {}
-        for eid, log_result in self.item2user_dict.iteritems():
+        for eidstr, log_val_list in self.item2user_db.iteritems():
             temp = {'right':[], 'wrong':[]}
+            log_result = utl.loader.load_dbm(log_val_list)
             for log in log_result:
+                # The E step uses the index of the uid
+                uid_idx = self.uid_vec.index(log[0])
                 atag = log[1]
-                uid = log[0]
-                # TODO: fix the data type of atag, int or float
-                if abs(atag-1.0)<0.001:
-                    temp['right'].append(uid)
+                if atag==1:
+                    temp['right'].append(uid_idx)
                 else:
-                    temp['wrong'].append(uid)
+                    temp['wrong'].append(uid_idx)
             # update
-            self.right_wrong_map[eid] = temp
+            self.right_wrong_map[int(eidstr)] = temp
 
 
     def __update_theta_distr(self):
@@ -342,10 +348,10 @@ class IRT_MMLE_2PL(object):
 
         # [A] calculate p(data,param|theta)
         # TODO: speed it up
-        for i in range(self.num_user):
+        for i in xrange(self.num_user):
             uid = self.uid_vec[i]
             # find all the items
-            log_list = self.user2item_dict[uid]
+            log_list = utl.loader.load_dbm(self.user2item_db['%d'%uid])
             # create eid list and atag list
             num_log = len(log_list)
             # create temp likelihood vector for each possible value of theta
@@ -405,7 +411,8 @@ class IRT_MMLE_2PL(object):
             uid = self.uid_vec[i]
             theta = self.theta_vec[i]
             # find all the eid
-            for log in self.user2item_dict[uid]:
+            logs = utl.loader.load_dbm(self.user2item_db['%d'%uid])
+            for log in logs:
                 eid = log[0]
                 atag = log[1]
                 alpha = self.item_param_dict[eid]['alpha']
@@ -458,9 +465,3 @@ class IRT_MMLE_2PL(object):
                     # update c
                     # cap at 0.5
                     self.item_param_dict[eid]['c'] = min(right_cnt/num_guesser, 0.5)
-
-
-
-
-
-

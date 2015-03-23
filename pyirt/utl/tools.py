@@ -57,18 +57,3 @@ def logsum(logp):
     return logSump
 
 
-def parse_item_paramer(item_param_dict, output_file = None):
-
-    if output_file is not None:
-        # open the file
-        out_fh = open(output_file,'w')
-
-    for eid, param in item_param_dict.iteritems():
-        alpha_val = np.round(param['alpha'],decimals=2)
-        beta_val = np.round(param['beta'],decimals=2)
-        if output_file is None:
-            print eid, alpha_val, beta_val
-        else:
-            out_fh.write('{},{},{}\n'.format(eid, alpha_val, beta_val))
-
-

@@ -5,6 +5,7 @@ pyirt.egg-info/PKG-INFO
 pyirt.egg-info/SOURCES.txt
 pyirt.egg-info/dependency_links.txt
 pyirt.egg-info/not-zip-safe
+pyirt.egg-info/pbr.json
 pyirt.egg-info/requires.txt
 pyirt.egg-info/top_level.txt
 pyirt/solver/__init__.py
