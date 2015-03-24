@@ -19,5 +19,6 @@ run.py
 .pypirc
 intro-pypi-steps.txt
 other
+*.sh
 
 #git ls-files -ci --exclude-standard -z | xargs -0 git rm --cached

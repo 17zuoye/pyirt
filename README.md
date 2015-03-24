@@ -85,6 +85,9 @@ from pyirt import *
 
 src_fp = open(file_path,'r')
 
+# alternatively, pass in list of tuples in the format of [(uid, eid, atag),...]
+
+
 # (1)Run by default
 item_param, user_param = irt(src_fp)
 

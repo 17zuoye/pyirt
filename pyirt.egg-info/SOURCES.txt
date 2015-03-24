@@ -1,3 +1,4 @@
+MANIFEST.in
 setup.cfg
 setup.py
 pyirt/__init__.py
@@ -19,5 +20,6 @@ pyirt/test/optimizerUnitTest.py
 pyirt/test/thetaEstimatorUnitTest.py
 pyirt/test/toolsUnitTest.py
 pyirt/utl/__init__.py
+pyirt/utl/clib.pyx
 pyirt/utl/loader.py
 pyirt/utl/tools.py
