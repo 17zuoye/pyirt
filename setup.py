@@ -14,17 +14,19 @@ setup(
   author = 'Junchen Feng',
   author_email = 'frankfeng.pku@gmail.com',
   include_package_data=True,
-  download_url = 'https://github.com/junchenfeng/pyirt/tarball/0.1.5', 
-  keywords = ['IRT', 'EM', 'big data'], 
+  download_url = 'https://github.com/junchenfeng/pyirt/tarball/0.1.5',
+  keywords = ['IRT', 'EM', 'big data'],
   zip_safe=False,
   platforms='any',
   install_requires=[
    'numpy',
    'scipy',
+      'cython'
   ],
   classifiers = [
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 2.7',
   ],
+
 )

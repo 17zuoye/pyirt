@@ -6,6 +6,8 @@ import solver, utl
 import math
 import numpy as np
 
+from utl import clib
+
 
 class TestItemSolverNoGuess(unittest.TestCase):
     def setUp(self):

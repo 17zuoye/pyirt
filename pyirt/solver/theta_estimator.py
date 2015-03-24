@@ -7,7 +7,7 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_dir)
 
 import utl, solver
-
+from utl import clib
 
 class bayesian_estimator(object):
 
@@ -43,7 +43,7 @@ class bayesian_estimator(object):
                 alpha = log[1][0]
                 beta  = log[1][1]
                 c     = log[1][2]
-                ell += utl.tools.log_likelihood_2PL(atag, 1.0-atag, theta, alpha, beta, c)
+                ell += clib.log_likelihood_2PL(atag, 1.0-atag, theta, alpha, beta, c)
             # now update the density
             likelihood_vec[k] = ell
 
