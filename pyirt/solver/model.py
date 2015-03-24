@@ -11,12 +11,21 @@ The current version only deals with unidimension theta
 import numpy as np
 import os
 import sys
+import subprocess
+
+try:
+    import bsddb
+except:
+    import bsddb3 as bsddb
+
+import time
+
+
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_dir)
 
 import utl
 import solver
-import bsddb3 as bsddb
 
 
 # import cython
@@ -28,7 +37,7 @@ class IRT_MMLE_2PL(object):
     (2) set parameter
     (3) solve
     '''
-    def load_data(self, src, tmp_dir='/tmp/pyirt/'):
+    def load_data(self, src, is_mount, user_name, tmp_dir='/tmp/pyirt/'):
         # three columns are uid, eid, atag
         if isinstance(src, file):
             # if the src is file handle
@@ -41,6 +50,14 @@ class IRT_MMLE_2PL(object):
         # check if the tmp directory is accessible
         if not os.path.isdir(tmp_dir):
             os.mkdir(tmp_dir)
+
+        # by default,do NOT mount the temp dir in memory, unless otherwise specified
+        if is_mount:
+            # create the directory
+            subprocess.call(["sudo", "mount","-t","tmpfs","tmpfs",tmp_dir])
+            # transfer ownwership
+            subprocess.call(["sudo","chown",user_name+":root",tmp_dir])
+
         self.tmp_dir = tmp_dir  # passed in for later cache
         self._process_data(uids, eids, atags)
         self._init_data_param()
@@ -123,16 +140,16 @@ class IRT_MMLE_2PL(object):
         avg_prob_t0   = 0
 
         while True:
+            iter_start_time = time.time()
             # add in time block
-            # start_time = time.time()
+            start_time = time.time()
             self._exp_step()
-            # print("--- E step: %f secs ---" %
-            # np.round((time.time()-start_time)))
+            print("--- E step: %f secs ---" % np.round((time.time()-start_time)))
 
-            # start_time = time.time()
+            start_time = time.time()
             self._max_step()
-            # print("--- M step: %f secs ---" %
-            # np.round((time.time()-start_time)))
+            print("--- M step: %f secs ---" %
+            np.round((time.time()-start_time)))
 
             self.__calc_theta()
 
@@ -144,6 +161,7 @@ class IRT_MMLE_2PL(object):
             # the goal is to maximize the "average" probability
             avg_prob = np.exp(self.__calc_data_likelihood()/self.num_log)
             self.ell_list.append(avg_prob)
+            print("--- all: %f secs ---" % np.round((time.time()-iter_start_time)))
             print(avg_prob)
 
             # if the algorithm improves, then ell > ell_t0
@@ -158,6 +176,7 @@ class IRT_MMLE_2PL(object):
             # update the stop condition
             avg_prob_t0 = avg_prob
             num_iter += 1
+
 
             if (num_iter > self.max_iter):
                 print('EM does not converge within max iteration')
