@@ -6,12 +6,15 @@ import os, sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_dir)
 import utl
-from utl import clib
+
+# import cython
+import pyximport; pyximport.install()
+import utl.clib as clib
 
 
-#TODO: The BFGS method is not as precise as the NM method
-#TODO: There maybe overflowing issue in data
-#TODO: Enable the calibration for two parameter estimation
+# TODO: The BFGS method is not as precise as the NM method
+# TODO: There maybe overflowing issue in data
+# TODO: Enable the calibration for two parameter estimation
 np.seterr(over='raise')
 
 class irt_2PL_Optimizer(object):

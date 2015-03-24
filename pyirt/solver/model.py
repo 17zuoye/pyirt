@@ -17,8 +17,11 @@ sys.path.insert(0, root_dir)
 import utl
 import solver
 import bsddb
-from utl import clib
 
+
+# import cython
+import pyximport; pyximport.install()
+import utl.clib as clib
 
 class IRT_MMLE_2PL(object):
 

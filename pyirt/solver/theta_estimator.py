@@ -7,7 +7,10 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_dir)
 
 import utl, solver
-from utl import clib
+
+# import cython
+import pyximport; pyximport.install()
+import utl.clib as clib
 
 class bayesian_estimator(object):
 
