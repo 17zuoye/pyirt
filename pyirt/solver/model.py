@@ -16,7 +16,7 @@ sys.path.insert(0, root_dir)
 
 import utl
 import solver
-import bsddb
+import bsddb3 as bsddb
 
 
 # import cython
