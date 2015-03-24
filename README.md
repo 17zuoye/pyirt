@@ -80,19 +80,22 @@ other types.
 
 V.Example
 =========
+```python
 from pyirt import *
 
-## (1)Run by default
-item-param, user-param = irt(src-fp)
+src_fp = open(file_path,'r')
 
-## (2)Supply bnds
-item-param, user-param = irt(src-fp, theta-bnds = [-5,5], beta-bnds = [-3,3])
+# (1)Run by default
+item_param, user_param = irt(src_fp)
 
-## (3)Supply guess parameter
+# (2)Supply bnds
+item_param, user-param = irt(src_fp, theta_bnds = [-5,5], beta_bnds = [-3,3])
+
+# (3)Supply guess parameter
 guessParamDict = {1:{'c':0.0}, 2:{'c':0.25}}
 
-item-param, user-param = irt(src-fp, in-guess-param = guessParamDict)
-
+item_param, user_param = irt(src_fp, in_guess_param = guessParamDict)
+```
 
 
 VI.Performance Check
@@ -119,7 +122,7 @@ VII.ToDos
 (3) The solver cannot handle group constraints.
 
 ## Algorithm
-(1) Use cython to improve performance
+(1) Introduce parallel computing
 
 (2) Scipy optimize routine is not as good as the matlab fmincon, consider use a
 plugin from matlab
