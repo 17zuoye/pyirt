@@ -20,9 +20,6 @@ import bsddb
 
 
 # import cython
-import pyximport; pyximport.install()
-import utl.clib as clib
-
 class IRT_MMLE_2PL(object):
 
     '''
@@ -393,7 +390,7 @@ class IRT_MMLE_2PL(object):
                     beta  = self.item_param_dict[eid]['beta']
                     c     = self.item_param_dict[eid]['c']
                     atag  = log_list[m][1]
-                    ell   += clib.log_likelihood_2PL(atag, 1.0-atag,
+                    ell   += utl.clib.log_likelihood_2PL(atag, 1.0-atag,
                                                           theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
@@ -445,7 +442,7 @@ class IRT_MMLE_2PL(object):
                 beta = self.item_param_dict[eid]['beta']
                 c = self.item_param_dict[eid]['c']
 
-                ell += clib.log_likelihood_2PL(atag, 1-atag,
+                ell += utl.clib.log_likelihood_2PL(atag, 1-atag,
                                                     theta, alpha, beta, c)
         return ell
 
