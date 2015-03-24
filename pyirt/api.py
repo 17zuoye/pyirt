@@ -16,7 +16,7 @@ def irt(fp, theta_bnds=[-4,4],
         raise Exception('Unknown model specification.')
 
     # load
-    model.loadFromHandle(fp)
+    model.load_data(fp)
     model.load_param(theta_bnds, alpha_bnds, beta_bnds)
     model.load_guess_param(in_guess_param)
 

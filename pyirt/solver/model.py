@@ -28,10 +28,39 @@ class IRT_MMLE_2PL(object):
     (2) set parameter
     (3) solve
     '''
+    def load_data(self, src, tmp_dir='/tmp/pyirt/'):
+        # three columns are uid, eid, atag
+        if isinstance(src, file):
+            # if the src is file handle
+            uids, eids, atags = self._loadFromHandle(src)
+        else:
+            # if the src is list of tuples
+            uids, eids, atags = self._loadFromTuples(src)
 
-    def loadFromHandle(self, fp, sep=',', tmp_dir='/tmp/pyirt/'):
-        # Default format is comma separated files, three columns are uid, eid,
-        # atag
+        # process it
+        # check if the tmp directory is accessible
+        if not os.path.isdir(tmp_dir):
+            os.mkdir(tmp_dir)
+        self.tmp_dir = tmp_dir  # passed in for later cache
+        self._process_data(uids, eids, atags)
+        self._init_data_param()
+
+    def _loadFromTuples(self, data):
+        uids  = []
+        eids  = []
+        atags = []
+        if len(data) == 0:
+            raise Exception('Data is empty.')
+
+        for log in data:
+            uids.append(int(log[0]))
+            eids.append(int(log[1]))
+            atags.append(int(log[2]))
+
+        return uids, eids, atags
+
+    def _loadFromHandle(self, fp, sep=','):
+        # Default format is comma separated files,
         # Only int is allowed within the environment
         uids  = []
         eids  = []
@@ -44,14 +73,7 @@ class IRT_MMLE_2PL(object):
             uids.append(int(uidstr))
             eids.append(int(eidstr))
             atags.append(int(atagstr))
-
-        # process it
-        # check if the tmp directory is accessible
-        if not os.path.isdir(tmp_dir):
-            os.mkdir(tmp_dir)
-        self.tmp_dir = tmp_dir  # passed in for later cache
-        self._process_data(uids, eids, atags)
-        self._init_data_param()
+        return uids, eids, atags
 
     def load_param(self, theta_bnds, alpha_bnds, beta_bnds):
         # TODO: allow for a more flexible parameter setting
