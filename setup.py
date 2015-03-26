@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
   name = 'pyirt',
-  version = '0.2.2.5',
+  version = '0.2.4',
   packages = ['pyirt',
 		'pyirt/solver',
 		'pyirt/utl',
@@ -13,7 +13,7 @@ setup(
   author = 'Junchen Feng',
   author_email = 'frankfeng.pku@gmail.com',
   include_package_data=True,
-  download_url = 'https://github.com/junchenfeng/pyirt/tarball/0.2.2.5',
+  download_url = 'https://github.com/junchenfeng/pyirt/tarball/0.2.4',
   keywords = ['IRT', 'EM', 'big data'],
   zip_safe=False,
   platforms='any',

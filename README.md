@@ -36,12 +36,14 @@ missing data problem.
 EM algorithm requires two essential dictionaries for analysis routine. One maps
 item to user and the other maps user to item. Python dictionary is not memory
 efficient so pyirt uses hard disk dbm instead. The limit of data size is
-essentially 1/3 of the hard drive size, which could accomendate billions of
-record stored as integer.
+about 1/4 of the hard drive size. I doubt any dataset will be that large.
 
-The performance will suffer but computation power is rarely the choke point for
-the huge dataset. In addition, one could use SSD to speed up the i/o, which is
-almost as good as RAM. 
+The performance will suffer greatly by using the dbm. For a 10 million record
+dataset, the loading time increases by about 5 times and the computation time
+increase by about 3 times. Putting the temp folder in memory does not reduces
+the time by 10%.
+
+User be aware when invoke the 'dbm' mode.
 
 ## Missing Data
 
@@ -128,7 +130,7 @@ VII.ToDos
 (1) Introduce parallel computing
 
 (2) Scipy optimize routine is not as good as the matlab fmincon, consider use a
-plugin from matlab
+c-plugin from matlab
 
 
 VIII.Acknowledgement
