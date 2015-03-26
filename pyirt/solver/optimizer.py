@@ -2,10 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar
 
-import os, sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_dir)
-import utl
+from ..utl import clib, tools
 
 
 
@@ -48,7 +45,7 @@ class irt_2PL_Optimizer(object):
         if sum(y1<0)>0 or  sum(y0<0)>0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
-        likelihood_vec = [utl.clib.log_likelihood_2PL(y1[i],y0[i],theta_vec[i],
+        likelihood_vec = [clib.log_likelihood_2PL(y1[i],y0[i],theta_vec[i],
                                                      alpha, beta,c) \
                           for i in range(num_data)]
         # transform into negative likelihood
@@ -67,12 +64,7 @@ class irt_2PL_Optimizer(object):
         for i in range(num_data):
             # the toolbox calculate the gradient of the log likelihood,
             # but the algorithm needs that of the negative ll
-            der -= utl.clib.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta, c)
-        #grad = [ -utl.clib.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta) for i in range(num_data)]
-        #TODO: This is actually a bit of cheating
-        #if abs(der[0]) >50 or abs(der[1])>50:
-        #    ratio = max(abs(der/50))
-        #    der = der/ratio
+            der -= clib.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta, c)
         return der
 
 
@@ -160,7 +152,7 @@ class irt_factor_optimizer(object):
         if sum(y1<0)>0 or  sum(y0<0)>0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
-        likelihood_vec = [utl.clib.log_likelihood_2PL(y1[i],y0[i],theta,
+        likelihood_vec = [clib.log_likelihood_2PL(y1[i],y0[i],theta,
                                                      alpha_vec[i], beta_vec[i],c_vec[i]) \
                           for i in range(num_data)]
         # transform into negative likelihood
@@ -177,7 +169,7 @@ class irt_factor_optimizer(object):
 
         der = 0.0
         for i in range(num_data):
-            der -= utl.tools.log_likelihood_factor_gradient(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
+            der -= tools.log_likelihood_factor_gradient(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
         return der
 
     @staticmethod
@@ -189,7 +181,7 @@ class irt_factor_optimizer(object):
 
         hes = 0.0
         for i in range(num_data):
-            hes -= utl.tools.log_likelihood_factor_hessian(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
+            hes -= tools.log_likelihood_factor_hessian(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
         return hes
 
 

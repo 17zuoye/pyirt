@@ -10,14 +10,10 @@ The current version only deals with unidimension theta
 '''
 import numpy as np
 import os
-import sys
 import time
 
-
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_dir)
-import utl
-import solver
+from ..utl import clib, tools, loader
+from ..solver import optimizer
 
 
 # import cython
@@ -40,7 +36,7 @@ class IRT_MMLE_2PL(object):
         # process it
         print('Data loading is complete.')
 
-        self.data_ref = utl.loader.data_storage()
+        self.data_ref = loader.data_storage()
         self.data_ref.setup(uids,eids,atags)
 
     def load_param(self, theta_bnds, alpha_bnds, beta_bnds):
@@ -171,7 +167,7 @@ class IRT_MMLE_2PL(object):
             log likelihood(param_j) = sum_k(log likelihood(param_j, theta_k))
         '''
         # [A] max for item parameter
-        opt_worker = solver.optimizer.irt_2PL_Optimizer()
+        opt_worker = optimizer.irt_2PL_Optimizer()
         # the boundary is universal
         # the boundary is set regardless of the constrained option because the
         # constrained search serves as backup for outlier cases
@@ -316,7 +312,7 @@ class IRT_MMLE_2PL(object):
                     beta  = self.item_param_dict[eid]['beta']
                     c     = self.item_param_dict[eid]['c']
                     atag  = log_list[m][1]
-                    ell   += utl.clib.log_likelihood_2PL(atag, 1.0-atag,
+                    ell   += clib.log_likelihood_2PL(atag, 1.0-atag,
                                                           theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
@@ -326,7 +322,7 @@ class IRT_MMLE_2PL(object):
 
             # calculate the posterior
             # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
-            marginal = utl.tools.logsum(log_joint_prob_vec)
+            marginal = tools.logsum(log_joint_prob_vec)
             self.posterior_theta_distr[i,:] = np.exp(log_joint_prob_vec - marginal)
 
         # When the loop finish, check if the theta_density adds up to unity for each user
@@ -367,7 +363,7 @@ class IRT_MMLE_2PL(object):
                 beta = self.item_param_dict[eid]['beta']
                 c = self.item_param_dict[eid]['c']
 
-                ell += utl.clib.log_likelihood_2PL(atag, 1-atag,
+                ell += clib.log_likelihood_2PL(atag, 1-atag,
                                                     theta, alpha, beta, c)
         return ell
 

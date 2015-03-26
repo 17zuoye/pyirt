@@ -2,7 +2,7 @@ MANIFEST.in
 setup.cfg
 setup.py
 pyirt/__init__.py
-pyirt/api.py
+pyirt/_pyirt.py
 pyirt.egg-info/PKG-INFO
 pyirt.egg-info/SOURCES.txt
 pyirt.egg-info/dependency_links.txt

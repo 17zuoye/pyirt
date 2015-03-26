@@ -1,9 +1,7 @@
 import unittest
-import os, sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_dir)
 
-import solver
+
+from ..solver import theta_estimator
 
 class TestBayesianEstimator(unittest.TestCase):
     bad_log = [[1,(1,8,0)]] # not very informative
@@ -11,10 +9,10 @@ class TestBayesianEstimator(unittest.TestCase):
 
 
     def test_bayesian_informative_log(self):
-        uni_est = solver.theta_estimator.bayesian_estimator()
+        uni_est = theta_estimator.bayesian_estimator()
         uni_est.set_prior(-4,4,9,'uniform')
 
-        beta_est = solver.theta_estimator.bayesian_estimator()
+        beta_est = theta_estimator.bayesian_estimator()
         beta_est.set_prior(-4,4,9,'beta')
         uni_est.update(self.good_log)
 
@@ -29,10 +27,10 @@ class TestBayesianEstimator(unittest.TestCase):
 
 
     def test_bayesian_uninformative_log(self):
-        uni_est = solver.theta_estimator.bayesian_estimator()
+        uni_est = theta_estimator.bayesian_estimator()
         uni_est.set_prior(-4,4,9,'uniform')
 
-        beta_est = solver.theta_estimator.bayesian_estimator()
+        beta_est = theta_estimator.bayesian_estimator()
         beta_est.set_prior(-4,4,9,'beta')
 
         uni_est.update(self.bad_log)
@@ -44,7 +42,7 @@ class TestBayesianEstimator(unittest.TestCase):
         self.assertTrue(abs(beta_theta_posterior-0.0)<1e-1)
 
     def test_mle_log(self):
-        mle_est = solver.theta_estimator.MLE_estimator()
+        mle_est = theta_estimator.MLE_estimator()
         theta_hat_bad = mle_est.update(self.bad_log)
         theta_hat_good = mle_est.update(self.good_log)
 

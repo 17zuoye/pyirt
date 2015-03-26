@@ -1,9 +1,8 @@
 import unittest
-import os, sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_dir)
-import solver, utl
-import math
+
+from ..solver import optimizer
+
+from ..utl import tools
 import numpy as np
 
 
@@ -19,7 +18,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
         y0 = []
         for i in range(n):
             # generate the two parameter likelihood
-            prob = utl.tools.irt_fnc(theta_vec[i], self.beta, self.alpha)
+            prob = tools.irt_fnc(theta_vec[i], self.beta, self.alpha)
             # generate the response sequence
             if prob >= np.random.uniform():
                 y1.append(1.0)
@@ -31,7 +30,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
         response_data = [y1, y0]
 
         # initialize optimizer
-        self.solver = solver.optimizer.irt_2PL_Optimizer()
+        self.solver = optimizer.irt_2PL_Optimizer()
         self.solver.load_res_data(response_data)
         self.solver.set_theta(theta_vec)
         self.solver.set_c(0)
@@ -74,7 +73,7 @@ class TestUserSolver(unittest.TestCase):
         y0 = []
         for i in range(n):
             # generate the two parameter likelihood
-            prob = utl.tools.irt_fnc(self.theta, self.beta_vec[i], self.alpha_vec[i])
+            prob = tools.irt_fnc(self.theta, self.beta_vec[i], self.alpha_vec[i])
             # generate the response sequence
             if prob >= np.random.uniform():
                 y1.append(1.0)
@@ -86,7 +85,7 @@ class TestUserSolver(unittest.TestCase):
         response_data = [y1, y0]
 
         # initialize optimizer
-        self.solver = solver.optimizer.irt_factor_optimizer()
+        self.solver = optimizer.irt_factor_optimizer()
         self.solver.load_res_data(response_data)
         self.solver.set_item_parameter(self.alpha_vec, self.beta_vec, self.c_vec)
         self.solver.set_bounds([(-6,6)])

@@ -10,13 +10,10 @@ The current version only deals with unidimension theta
 '''
 import numpy as np
 import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_dir)
+import time
 
-import utl
-import solver
-import bsddb
+from ..utl import clib, tools, loader
+from ..solver import optimizer
 
 
 # import cython
@@ -28,7 +25,7 @@ class IRT_MMLE_2PL(object):
     (2) set parameter
     (3) solve
     '''
-    def load_data(self, src, tmp_dir='/tmp/pyirt/'):
+    def load_data(self, src, is_mount, user_name, tmp_dir='/tmp/pyirt/'):
         # three columns are uid, eid, atag
         if isinstance(src, file):
             # if the src is file handle
@@ -36,48 +33,14 @@ class IRT_MMLE_2PL(object):
         else:
             # if the src is list of tuples
             uids, eids, atags = self._loadFromTuples(src)
-
         # process it
-        # check if the tmp directory is accessible
-        if not os.path.isdir(tmp_dir):
-            os.mkdir(tmp_dir)
-        self.tmp_dir = tmp_dir  # passed in for later cache
-        self._process_data(uids, eids, atags)
-        self._init_data_param()
+        print('Data loading is complete.')
 
-    def _loadFromTuples(self, data):
-        uids  = []
-        eids  = []
-        atags = []
-        if len(data) == 0:
-            raise Exception('Data is empty.')
-
-        for log in data:
-            uids.append(int(log[0]))
-            eids.append(int(log[1]))
-            atags.append(int(log[2]))
-
-        return uids, eids, atags
-
-    def _loadFromHandle(self, fp, sep=','):
-        # Default format is comma separated files,
-        # Only int is allowed within the environment
-        uids  = []
-        eids  = []
-        atags = []
-
-        for line in fp:
-            if line == '':
-                continue
-            uidstr, eidstr, atagstr = line.strip().split(sep)
-            uids.append(int(uidstr))
-            eids.append(int(eidstr))
-            atags.append(int(atagstr))
-        return uids, eids, atags
+        self.data_ref = loader.data_storage()
+        self.data_ref.setup(uids,eids,atags)
 
     def load_param(self, theta_bnds, alpha_bnds, beta_bnds):
         # TODO: allow for a more flexible parameter setting
-
         # The config object has to be passed in because hdfs file system does
         # not load target file
 
@@ -94,14 +57,13 @@ class IRT_MMLE_2PL(object):
         max_iter       = 10
         tol            = 1e-3
 
-        self._init_solver_param(is_constrained, boundary,
-                                solver_type, max_iter, tol)
+        self._init_solver_param(is_constrained, boundary, solver_type, max_iter, tol)
 
     def load_guess_param(self, in_guess_param):
         if isinstance(in_guess_param, basestring):
             # all c are 0
             guess_param_dict = {}
-            for eid in self.eid_vec:
+            for eid in self.data_ref.eid_vec:
                 guess_param_dict[eid] = {'c': 0.0}
         else:
             guess_param_dict = in_guess_param
@@ -113,9 +75,7 @@ class IRT_MMLE_2PL(object):
         # currently item parameter requires no setup
         self._init_item_param()
 
-        # initialize some intermediate variables used in the E step
-        self._init_right_wrong_map()
-        self.posterior_theta_distr = np.zeros((self.num_user, self.num_theta))
+        self.posterior_theta_distr = np.zeros((self.data_ref.num_user, self.num_theta))
 
         # TODO: enable the stopping condition
         num_iter      = 1
@@ -123,16 +83,15 @@ class IRT_MMLE_2PL(object):
         avg_prob_t0   = 0
 
         while True:
+            iter_start_time = time.time()
             # add in time block
-            # start_time = time.time()
+            start_time = time.time()
             self._exp_step()
-            # print("--- E step: %f secs ---" %
-            # np.round((time.time()-start_time)))
+            print("--- E step: %f secs ---" % np.round((time.time()-start_time)))
 
-            # start_time = time.time()
+            start_time = time.time()
             self._max_step()
-            # print("--- M step: %f secs ---" %
-            # np.round((time.time()-start_time)))
+            print("--- M step: %f secs ---" % np.round((time.time()-start_time)))
 
             self.__calc_theta()
 
@@ -142,8 +101,9 @@ class IRT_MMLE_2PL(object):
             # self.update_guess_param()
 
             # the goal is to maximize the "average" probability
-            avg_prob = np.exp(self.__calc_data_likelihood()/self.num_log)
+            avg_prob = np.exp(self.__calc_data_likelihood()/self.data_ref.num_log)
             self.ell_list.append(avg_prob)
+            print("--- all: %f secs ---" % np.round((time.time()-iter_start_time)))
             print(avg_prob)
 
             # if the algorithm improves, then ell > ell_t0
@@ -159,6 +119,7 @@ class IRT_MMLE_2PL(object):
             avg_prob_t0 = avg_prob
             num_iter += 1
 
+
             if (num_iter > self.max_iter):
                 print('EM does not converge within max iteration')
                 break
@@ -169,8 +130,8 @@ class IRT_MMLE_2PL(object):
 
     def get_user_param(self):
         user_param_dict = {}
-        for i in xrange(self.num_user):
-            uid = self.uid_vec[i]
+        for i in xrange(self.data_ref.num_user):
+            uid = self.data_ref.uid_vec[i]
             user_param_dict[uid] = self.theta_vec[i]
 
         return user_param_dict
@@ -206,7 +167,7 @@ class IRT_MMLE_2PL(object):
             log likelihood(param_j) = sum_k(log likelihood(param_j, theta_k))
         '''
         # [A] max for item parameter
-        opt_worker = solver.optimizer.irt_2PL_Optimizer()
+        opt_worker = optimizer.irt_2PL_Optimizer()
         # the boundary is universal
         # the boundary is set regardless of the constrained option because the
         # constrained search serves as backup for outlier cases
@@ -215,7 +176,7 @@ class IRT_MMLE_2PL(object):
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
 
-        for eid in self.eid_vec:
+        for eid in self.data_ref.eid_vec:
             # set the initial guess as a mixture of current value and a new
             # start to avoid trap in local maximum
             initial_guess_val = (self.item_param_dict[eid]['beta'],
@@ -225,10 +186,10 @@ class IRT_MMLE_2PL(object):
             opt_worker.set_c(self.item_param_dict[eid]['c'])
 
             # assemble the expected data
-            j = self.eid_vec.index(eid)
+            j = self.data_ref.eidx[eid]
             expected_right_count = self.item_expected_right_bytheta[:,j]
             expected_wrong_count = self.item_expected_wrong_bytheta[:,j]
-            input_data = [expected_right_count,expected_wrong_count]
+            input_data = [expected_right_count, expected_wrong_count]
             opt_worker.load_res_data(input_data)
 
             # solve by L-BFGS-B
@@ -244,7 +205,6 @@ class IRT_MMLE_2PL(object):
                         est_param = opt_worker.solve_param_linear(True)
                     else:
                         raise e
-
             else:
                 raise Exception('Unknown solver type')
 
@@ -258,56 +218,38 @@ class IRT_MMLE_2PL(object):
         w_vec = np.sum(self.item_expected_wrong_bytheta,axis=1)
         self.theta_density = np.divide(r_vec, r_vec+w_vec)
 
-
-
     '''
     Auxuliary function
     '''
-    def _process_data(self, uids, eids, atags):
-        '''
-        Memory efficiency optimization:
+    def _loadFromTuples(self, data):
+        uids  = []
+        eids  = []
+        atags = []
+        if len(data) == 0:
+            raise Exception('Data is empty.')
 
-        (1) The matrix is sparse, so use three parallel lists for data storage.
-        parallel lists are more memory eficient than tuple
-        (2) For fast retrieval, turn three parallel list into dictionary by uid and eid
-        (3) Python dictionary takes up a lot of memory, so use dbm
+        for log in data:
+            uids.append(int(log[0]))
+            eids.append(int(log[1]))
+            atags.append(int(log[2]))
 
-        # for more details, see
-        http://stackoverflow.com/questions/2211965/python-memory-usage-loading-large-dictionaries-in-memory
+        return uids, eids, atags
 
-        # The design is originally described by Chaoqun Fu
-        '''
+    def _loadFromHandle(self, fp, sep=','):
+        # Default format is comma separated files,
+        # Only int is allowed within the environment
+        uids  = []
+        eids  = []
+        atags = []
 
-        '''
-        Need the following dictionary for esitmation routine
-        (1) item -> user: key: eid, value: (uid, atag)
-        (2) user -> item: key: uid, value: (eid, atag)
-        '''
-        # always rewrite
-        self.item2user_db = bsddb.hashopen(self.tmp_dir+'/item2user.db', 'n')
-        self.user2item_db = bsddb.hashopen(self.tmp_dir+'/user2item.db', 'n')
-        self.num_log = len(uids)
-
-        for i in xrange(self.num_log):
-            eid  = eids[i]
-            uid  = uids[i]
-            atag = atags[i]
-            # if not initiated, init with empty str
-            if str(eid) not in self.item2user_db:
-                self.item2user_db['%d' % eid] = ''
-            if str(uid) not in self.user2item_db:
-                self.user2item_db['%d' % uid] = ''
-
-            self.item2user_db['%d' % eid] += '%d,%d;' % (uid, atag)
-            self.user2item_db['%d' % uid] += '%d,%d;' % (eid, atag)
-
-    def _init_data_param(self):
-        # system parameter
-        self.uid_vec = [int(x) for x in self.user2item_db.keys()]
-        self.num_user = len(self.uid_vec)
-        self.eid_vec = [int(x) for x in self.item2user_db.keys()]
-        self.num_item = len(self.eid_vec)
-
+        for line in fp:
+            if line == '':
+                continue
+            uidstr, eidstr, atagstr = line.strip().split(sep)
+            uids.append(int(uidstr))
+            eids.append(int(eidstr))
+            atags.append(int(atagstr))
+        return uids, eids, atags
 
     def _init_solver_param(self, is_constrained, boundary,
                            solver_type, max_iter, tol):
@@ -324,7 +266,7 @@ class IRT_MMLE_2PL(object):
 
     def _init_item_param(self):
         self.item_param_dict = {}
-        for eid in self.eid_vec:
+        for eid in self.data_ref.eid_vec:
             # need to call the old eid
             c = self.guess_param_dict[eid]['c']
 
@@ -338,26 +280,6 @@ class IRT_MMLE_2PL(object):
         # store the prior density
         self.theta_density   = np.ones(num_theta)/num_theta
 
-    def _init_right_wrong_map(self):
-        self.right_map = bsddb.hashopen(self.tmp_dir+'/right_map.db', 'n')
-        self.wrong_map = bsddb.hashopen(self.tmp_dir+'/wrong_map.db', 'n')
-
-        for eidstr, log_val_list in self.item2user_db.iteritems():
-            log_result = utl.loader.load_dbm(log_val_list)
-            for log in log_result:
-                # The E step uses the index of the uid
-                uid_idx = self.uid_vec.index(log[0])
-                atag = log[1]
-                if atag == 1:
-                    if eidstr not in self.right_map:
-                        self.right_map[eidstr] = '%d' % uid_idx
-                    else:
-                        self.right_map[eidstr] += ',%d' % uid_idx
-                else:
-                    if eidstr not in self.wrong_map:
-                        self.wrong_map[eidstr] = '%d' % uid_idx
-                    else:
-                        self.wrong_map[eidstr] += ',%d' % uid_idx
 
     def __update_theta_distr(self):
 
@@ -371,12 +293,12 @@ class IRT_MMLE_2PL(object):
 
         # [A] calculate p(data,param|theta)
         # TODO: speed it up
-        for i in xrange(self.num_user):
-            uid = self.uid_vec[i]
+        for i in xrange(self.data_ref.num_user):
+            uid = self.data_ref.uid_vec[i]
             # find all the items
-            log_list      = utl.loader.load_dbm(self.user2item_db['%d' % uid])
+            log_list = self.data_ref.get_log(uid)
             # create eid list and atag list
-            num_log       = len(log_list)
+            num_log  = len(log_list)
             # create temp likelihood vector for each possible value of theta
             likelihood_vec= np.zeros(self.num_theta)
             # calculate
@@ -390,7 +312,7 @@ class IRT_MMLE_2PL(object):
                     beta  = self.item_param_dict[eid]['beta']
                     c     = self.item_param_dict[eid]['c']
                     atag  = log_list[m][1]
-                    ell   += utl.clib.log_likelihood_2PL(atag, 1.0-atag,
+                    ell   += clib.log_likelihood_2PL(atag, 1.0-atag,
                                                           theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
@@ -400,7 +322,7 @@ class IRT_MMLE_2PL(object):
 
             # calculate the posterior
             # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
-            marginal = utl.tools.logsum(log_joint_prob_vec)
+            marginal = tools.logsum(log_joint_prob_vec)
             self.posterior_theta_distr[i,:] = np.exp(log_joint_prob_vec - marginal)
 
         # When the loop finish, check if the theta_density adds up to unity for each user
@@ -410,31 +332,30 @@ class IRT_MMLE_2PL(object):
 
     def __get_expect_count(self):
 
-        self.item_expected_right_bytheta = np.zeros((self.num_theta, self.num_item))
-        self.item_expected_wrong_bytheta = np.zeros((self.num_theta, self.num_item))
+        self.item_expected_right_bytheta = np.zeros((self.num_theta, self.data_ref.num_item))
+        self.item_expected_wrong_bytheta = np.zeros((self.num_theta, self.data_ref.num_item))
 
-        for j in range(self.num_item):
-            eid = self.eid_vec[j]
+        for j in range(self.data_ref.num_item):
+            eid = self.data_ref.eid_vec[j]
             # get all the users that done it right
             # get all the users that done it wrong
-
-            right_uid_vec = [int(x) for x in self.right_map[str(eid)].split(',') ]
-            wrong_uid_vec = [int(x) for x in self.wrong_map[str(eid)].split(',') ]
+            right_uid_vec, wrong_uid_vec = self.data_ref.get_rwmap(eid)
             # condition on the posterior ability, what is the expected count of
             # students get it right
             # TODO: for readability, should specify the rows and columns
             self.item_expected_right_bytheta[:,j] = np.sum(self.posterior_theta_distr[right_uid_vec,:], axis = 0)
             self.item_expected_wrong_bytheta[:,j] = np.sum(self.posterior_theta_distr[wrong_uid_vec,:], axis = 0)
 
+
     def __calc_data_likelihood(self):
         # calculate the likelihood for the data set
 
         ell = 0
-        for i in range(self.num_user):
-            uid = self.uid_vec[i]
+        for i in range(self.data_ref.num_user):
+            uid = self.data_ref.uid_vec[i]
             theta = self.theta_vec[i]
             # find all the eid
-            logs = utl.loader.load_dbm(self.user2item_db['%d' % uid])
+            logs = self.data_ref.get_log(uid)
             for log in logs:
                 eid = log[0]
                 atag = log[1]
@@ -442,7 +363,7 @@ class IRT_MMLE_2PL(object):
                 beta = self.item_param_dict[eid]['beta']
                 c = self.item_param_dict[eid]['c']
 
-                ell += utl.clib.log_likelihood_2PL(atag, 1-atag,
+                ell += clib.log_likelihood_2PL(atag, 1-atag,
                                                     theta, alpha, beta, c)
         return ell
 
@@ -452,22 +373,20 @@ class IRT_MMLE_2PL(object):
 
     '''
     Experimental
-    '''
     def update_guess_param(self):
         # at the end of each repetition, try to update the distribution of c
-        '''
-        C is only identified at the extreme right tail, which is not possible in the EM environment
-        Use the average performance of the worst ability
-        '''
+
+        #C is only identified at the extreme right tail, which is not possible in the EM environment
+        #Use the average performance of the worst ability
 
         raise Exception('Currently deprecated!')
 
         # find the user that are in the bottom 5%
         cut_threshold = np.percentile(self.theta_vec, 5)
-        bottom_group = [i for i in range(self.num_user) if self.theta_vec[i] <= cut_threshold]
+        bottom_group = [i for i in range(self.data_ref.num_user) if self.theta_vec[i] <= cut_threshold]
 
         # now loop through all the items
-        for eid in self.eid_vec:
+        for eid in self.data_ref.eid_vec:
 
             if self.item_param_dict[eid]['update_c']:
                 # find the user group
@@ -484,3 +403,5 @@ class IRT_MMLE_2PL(object):
                     # update c
                     # cap at 0.5
                     self.item_param_dict[eid]['c'] = min(right_cnt/num_guesser, 0.5)
+    '''
+

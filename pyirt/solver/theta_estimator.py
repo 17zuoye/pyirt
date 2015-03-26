@@ -2,15 +2,13 @@ import numpy as np
 from scipy.stats import beta
 
 
-import os, sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_dir)
 
-import utl, solver
+
+from ..utl import clib, tools
+
+from ..solver import optimizer
 
 # import cython
-import pyximport; pyximport.install()
-import utl.clib as clib
 
 class bayesian_estimator(object):
 
@@ -54,7 +52,7 @@ class bayesian_estimator(object):
         log_joint_prob_vec  = likelihood_vec + np.log(self.theta_density)
         # calculate the posterior
         # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
-        marginal = utl.tools.logsum(log_joint_prob_vec)
+        marginal = tools.logsum(log_joint_prob_vec)
         self.theta_density = np.exp(log_joint_prob_vec - marginal)
 
     def get_estimator(self):
@@ -68,7 +66,7 @@ class bayesian_estimator(object):
 
 
 class MLE_estimator(object):
-    worker = solver.optimizer.irt_factor_optimizer()
+    worker = optimizer.irt_factor_optimizer()
 
     def update(self, logs):
         # log [tag(0/1), (a, b,c)]
