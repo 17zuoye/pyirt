@@ -1,36 +1,30 @@
+# Copied from https://gist.github.com/dan-blanchard/7045057 Quicker Travis builds that rely on numpy and scipy using Miniconda
+
 language: python
+python:
+  - 2.7
 
-env:
-  global:
-    - PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
-  matrix:
-    - TOXENV=py27
-
-sudo: false
-
-cache:
-  - $HOME/.pip-cache
-
+# Setup anaconda
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda/bin:$PATH
+  - conda update --yes conda
+  # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
+  - sudo rm -rf /dev/shm
+  - sudo ln -s /run/shm /dev/shm
+# Install packages
 install:
-  - pip install coveralls
-  - pip install tox
-
-before_script:
-  # allow ssh loopback
-  - ssh-keygen -t rsa -N '' -C '' -f ~/.ssh/id_rsa
-  - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-  - ssh -o StrictHostKeyChecking=no localhost true
-
-script:
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION atlas numpy scipy matplotlib nose dateutil pandas statsmodels
+  # Coverage packages are on my binstar channel
+  - conda install --yes -c dan_blanchard python-coveralls nose-cov
   - python setup.py install
-  - nosetests
-  - coverage run --source=pyirt setup.py test
 
-after_failure:
+# Run test
+script:
+  - nosetests --with-cov --cov pyirt --cov-config .coveragerc --logging-level=INFO
 
+# Calculate coverage
 after_success:
-  - coveralls
-
-branches:
-  only:
-    - master
+  - coveralls --config_file .coveragerc
