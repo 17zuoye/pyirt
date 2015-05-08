@@ -1,7 +1,15 @@
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, RootDir)
+
 import unittest
-from ..utl import tools, clib
+from pyirt.utl import tools, clib
 import math
 import numpy as np
+
 
 class TestIrtFunctions(unittest.TestCase):
 
@@ -138,6 +146,3 @@ class TestIrtFunctions(unittest.TestCase):
         calc_hessian = tools.log_likelihood_factor_hessian(y1,y0,theta,alpha,beta,c)
 
         self.assertTrue(abs(calc_hessian - true_hessian_approx_theta ) < 1e-4)
-
-if __name__ == '__main__':
-    unittest.main()

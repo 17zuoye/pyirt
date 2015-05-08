@@ -1,7 +1,14 @@
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, RootDir)
+
+
 import unittest
 
-
-from ..solver import theta_estimator
+from pyirt.solver import theta_estimator
 
 class TestBayesianEstimator(unittest.TestCase):
     bad_log = [[1,(1,8,0)]] # not very informative
@@ -48,7 +55,3 @@ class TestBayesianEstimator(unittest.TestCase):
 
         self.assertTrue(abs(theta_hat_bad-3.69)<1e-2)
         self.assertTrue(abs(theta_hat_good+4.0)<1e-2)
-
-
-if __name__ == '__main__':
-    unittest.main()
