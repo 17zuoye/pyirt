@@ -23,7 +23,7 @@ install:
 
 # Run test
 script:
-  - nosetests --with-cov --cov pyirt --cov-config .coveragerc --logging-level=INFO
+  - nosetests
 
 # Calculate coverage
 after_success:
