@@ -18,6 +18,7 @@ setup(
   zip_safe=False,
   platforms='any',
   install_requires=[
+   'bsddb3',
    'numpy',
    'scipy',
    'cython',],
