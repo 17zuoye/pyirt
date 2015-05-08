@@ -1,0 +1,36 @@
+language: python
+
+env:
+  global:
+    - PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
+  matrix:
+    - TOXENV=py27
+
+sudo: false
+
+cache:
+  - $HOME/.pip-cache
+
+install:
+  - pip install coveralls
+  - pip install tox
+
+before_script:
+  # allow ssh loopback
+  - ssh-keygen -t rsa -N '' -C '' -f ~/.ssh/id_rsa
+  - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  - ssh -o StrictHostKeyChecking=no localhost true
+
+script:
+  - python setup.py install
+  - nosetests
+  - coverage run --source=pyirt setup.py test
+
+after_failure:
+
+after_success:
+  - coveralls
+
+branches:
+  only:
+    - master

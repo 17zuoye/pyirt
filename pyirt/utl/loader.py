@@ -11,12 +11,26 @@ import numpy as np
 import time
 import os
 import subprocess
+
+# bsddb3 is hard to install
+#
+# example to install bsddb3 on OSX
+# brew install Berkeley-db
+# YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=TRUE BERKELEYDB_DIR=/usr/local/Cellar/berkeley-db/6.1.19 pip install bsddb3
 try:
-    import bsddb
+    import bsddb as diskdb
 except:
-    import bsddb3 as bsddb
+    try:
+        import bsddb3 as diskdb
+    except:
+        import shelve as diskdb
+
+# Compact with bsddb3
+if hasattr(diskdb, "hashopen"):
+    diskdb.open = diskdb.hashopen
 
 import collections as cos
+
 
 def from_matrix_to_list(indata_file, sep=',',header=False, is_uid=False):
     # assume the data takes the following format
@@ -110,7 +124,7 @@ def parse_item_paramer(item_param_dict, output_file = None):
             out_fh.write('{},{},{}\n'.format(eid, alpha_val, beta_val))
 
 '''
-Build a data storage facility that allows for memory dict and bsddb dict
+Build a data storage facility that allows for memory dict and diskdb dict
 '''
 
 class data_storage(object):
@@ -193,8 +207,10 @@ class data_storage(object):
         '''
 
         # always rewrite
-        self.item2user = bsddb.hashopen(self.tmp_dir+'/item2user.db', 'n')
-        self.user2item = bsddb.hashopen(self.tmp_dir+'/user2item.db', 'n')
+        os.system("rm -f %" % self.tmp_dir+'/item2user.db')
+        os.system("rm -f %" % self.tmp_dir+'/user2item.db')
+        self.item2user = diskdb.open(self.tmp_dir+'/item2user.db', 'c')
+        self.user2item = diskdb.open(self.tmp_dir+'/user2item.db', 'c')
         self.num_log = len(uids)
 
         for i in xrange(self.num_log):
@@ -211,8 +227,10 @@ class data_storage(object):
             self.user2item['%d' % uid] += '%d,%d;' % (eid, atag)
 
     def _init_right_wrong_map_bdm(self):
-        self.right_map = bsddb.hashopen(self.tmp_dir+'/right_map.db', 'n')
-        self.wrong_map = bsddb.hashopen(self.tmp_dir+'/wrong_map.db', 'n')
+        os.system("rm -f %" % self.tmp_dir+'/right_map.db')
+        os.system("rm -f %" % self.tmp_dir+'/wrong_map.db')
+        self.right_map = diskdb.open(self.tmp_dir+'/right_map.db', 'c')
+        self.wrong_map = diskdb.open(self.tmp_dir+'/wrong_map.db', 'c')
 
         for eidstr, log_val_list in self.item2user.iteritems():
             log_result = utl.loader.load_dbm(log_val_list)

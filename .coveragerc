@@ -1,0 +1,13 @@
+[report]
+omit =
+    */python?.?/*
+    */site-packages/nose/*
+    *__init__*
+    */__init__.py
+    */*/__init__.py
+    tests/*
+    */setup.py
+
+[run]
+parallel = True
+source   = pyirt
