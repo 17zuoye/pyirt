@@ -5,7 +5,6 @@ from scipy.optimize import minimize_scalar
 from ..utl import clib, tools
 
 
-
 # TODO: The BFGS method is not as precise as the NM method
 # TODO: There maybe overflowing issue in data
 # TODO: Enable the calibration for two parameter estimation
@@ -42,11 +41,11 @@ class irt_2PL_Optimizer(object):
         if len(theta_vec) != num_data:
             raise ValueError('The response data does not match theta vec in length.')
 
-        if sum(y1<0)>0 or  sum(y0<0)>0:
+        if sum(y1 < 0) > 0 or sum(y0 < 0) > 0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
-        likelihood_vec = [clib.log_likelihood_2PL(y1[i],y0[i],theta_vec[i],
-                                                     alpha, beta,c) \
+        likelihood_vec = [clib.log_likelihood_2PL(y1[i], y0[i], theta_vec[i],
+                                                  alpha, beta, c)
                           for i in range(num_data)]
         # transform into negative likelihood
         ell = -sum(likelihood_vec)
@@ -64,9 +63,8 @@ class irt_2PL_Optimizer(object):
         for i in range(num_data):
             # the toolbox calculate the gradient of the log likelihood,
             # but the algorithm needs that of the negative ll
-            der -= clib.log_likelihood_2PL_gradient(y1[i],y0[i],theta_vec[i],alpha,beta, c)
+            der -= clib.log_likelihood_2PL_gradient(y1[i], y0[i], theta_vec[i], alpha, beta, c)
         return der
-
 
     def solve_param_linear(self, is_constrained):
         # for now, temp set alpha to 1
@@ -76,11 +74,11 @@ class irt_2PL_Optimizer(object):
             return self._likelihood(self.res_data, self.theta, alpha, beta, self.c)
 
         if is_constrained:
-            res = minimize(target_fnc, self.x0, method = 'SLSQP',
-                        bounds=self.bnds, options={'disp':False})
+            res = minimize(target_fnc, self.x0, method='SLSQP',
+                           bounds=self.bnds, options={'disp': False})
         else:
             res = minimize(target_fnc, self.x0, method='nelder-mead',
-                           options={'xtol':1e-3, 'disp':False})
+                           options={'xtol': 1e-3, 'disp': False})
 
         # deal with expcetions
         if not res.success:
@@ -88,7 +86,7 @@ class irt_2PL_Optimizer(object):
                     res.message == 'Maximum number of function evaluations has been exceeded.':
                 raise Exception('Optimizer fails to find solution. Try constrained search.')
             else:
-                raise Exception('Algorithm failed because '+ res.message)
+                raise Exception('Algorithm failed because ' + res.message)
 
         return res.x
 
@@ -106,13 +104,13 @@ class irt_2PL_Optimizer(object):
             return self._gradient(self.res_data, self.theta, alpha, beta, self.c)
 
         if is_constrained:
-            res = minimize(target_fnc, self.x0, method = 'L-BFGS-B',
-                        jac= target_der, bounds = self.bnds,
-                        options={'disp':False})
+            res = minimize(target_fnc, self.x0, method='L-BFGS-B',
+                           jac=target_der, bounds=self.bnds,
+                           options={'disp': False})
         else:
-            res = minimize(target_fnc, self.x0, method = 'BFGS',
+            res = minimize(target_fnc, self.x0, method='BFGS',
                            jac=target_der,
-                           options={'disp':False})
+                           options={'disp': False})
 
         if not res.success:
             raise Exception('Algorithm failed.')
@@ -120,6 +118,7 @@ class irt_2PL_Optimizer(object):
         return res.x
 
 class irt_factor_optimizer(object):
+
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
 
@@ -128,7 +127,7 @@ class irt_factor_optimizer(object):
             raise ValueError('The alpha vec and the beta vec does not match in length.')
 
         self.alpha_vec = alpha_vec
-        self.beta_vec  = beta_vec
+        self.beta_vec = beta_vec
         self.c_vec = c_vec
 
     def set_bounds(self, bnds):
@@ -149,11 +148,11 @@ class irt_factor_optimizer(object):
             raise ValueError('The response data does not match in length.')
         if len(alpha_vec) != num_data:
             raise ValueError('The response data does not match alpha vec in length.')
-        if sum(y1<0)>0 or  sum(y0<0)>0:
+        if sum(y1 < 0) > 0 or sum(y0 < 0) > 0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
-        likelihood_vec = [clib.log_likelihood_2PL(y1[i],y0[i],theta,
-                                                     alpha_vec[i], beta_vec[i],c_vec[i]) \
+        likelihood_vec = [clib.log_likelihood_2PL(y1[i], y0[i], theta,
+                                                  alpha_vec[i], beta_vec[i], c_vec[i])
                           for i in range(num_data)]
         # transform into negative likelihood
         ell = -sum(likelihood_vec)
@@ -169,7 +168,7 @@ class irt_factor_optimizer(object):
 
         der = 0.0
         for i in range(num_data):
-            der -= tools.log_likelihood_factor_gradient(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
+            der -= tools.log_likelihood_factor_gradient(y1[i], y0[i], theta, alpha_vec[i], beta_vec[i], c_vec[i])
         return der
 
     @staticmethod
@@ -181,9 +180,8 @@ class irt_factor_optimizer(object):
 
         hes = 0.0
         for i in range(num_data):
-            hes -= tools.log_likelihood_factor_hessian(y1[i],y0[i],theta,alpha_vec[i],beta_vec[i], c_vec[i])
+            hes -= tools.log_likelihood_factor_hessian(y1[i], y0[i], theta, alpha_vec[i], beta_vec[i], c_vec[i])
         return hes
-
 
     def solve_param_linear(self, is_constrained):
         # for now, temp set alpha to 1
@@ -191,11 +189,11 @@ class irt_factor_optimizer(object):
             return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
 
         if is_constrained:
-            res = minimize(target_fnc, self.x0, method = 'SLSQP',
-                        bounds=self.bnds, options={'disp':False})
+            res = minimize(target_fnc, self.x0, method='SLSQP',
+                           bounds=self.bnds, options={'disp': False})
         else:
             res = minimize(target_fnc, self.x0, method='nelder-mead',
-                           options={'xtol':1e-4, 'disp':False})
+                           options={'xtol': 1e-4, 'disp': False})
 
         # deal with expcetions
         if not res.success:
@@ -203,7 +201,7 @@ class irt_factor_optimizer(object):
                     res.message == 'Maximum number of function evaluations has been exceeded.':
                 raise Exception('Optimizer fails to find solution. Try constrained search.')
             else:
-                raise Exception('Algorithm failed because '+ res.message)
+                raise Exception('Algorithm failed because ' + res.message)
 
         return res.x
 
@@ -211,17 +209,18 @@ class irt_factor_optimizer(object):
         # for now, temp set alpha to 1
         def target_fnc(x):
             return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+
         def target_der(x):
             return self._gradient(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
 
         if is_constrained:
-            res = minimize(target_fnc, self.x0, method = 'L-BFGS-B',
-                        jac= target_der, bounds = self.bnds,
-                        options={'disp':False})
+            res = minimize(target_fnc, self.x0, method='L-BFGS-B',
+                           jac=target_der, bounds=self.bnds,
+                           options={'disp': False})
         else:
-            res = minimize(target_fnc, self.x0, method = 'BFGS',
+            res = minimize(target_fnc, self.x0, method='BFGS',
                            jac=target_der,
-                           options={'disp':False})
+                           options={'disp': False})
 
         if not res.success:
             raise Exception('Algorithm failed.')
@@ -231,14 +230,16 @@ class irt_factor_optimizer(object):
     def solve_param_hessian(self):
         def target_fnc(x):
             return self._likelihood(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+
         def target_der(x):
             return self._gradient(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
+
         def target_hess(x):
             return self._hessian(self.res_data, x, self.alpha_vec, self.beta_vec, self.c_vec)
 
         res = minimize(target_fnc, self.x0, method='Newton-CG',
-                jac=target_der, hess=target_hess,
-                options={'xtol': 1e-8, 'disp': False})
+                       jac=target_der, hess=target_hess,
+                       options={'xtol': 1e-8, 'disp': False})
         if not res.success:
             if res.message == 'Desired error not necessarily achieved due to precision loss.':
                 # TODO:still returns a result. Something is wrong with the BFGS
@@ -247,7 +248,6 @@ class irt_factor_optimizer(object):
             else:
                 raise Exception('Algorithm failed, because ' + res.message)
         return res.x
-
 
     def solve_param_scalar(self):
         def target_fnc(x):

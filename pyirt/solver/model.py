@@ -25,6 +25,7 @@ class IRT_MMLE_2PL(object):
     (2) set parameter
     (3) solve
     '''
+
     def load_data(self, src, is_mount, user_name, tmp_dir='/tmp/pyirt/'):
         # three columns are uid, eid, atag
         if isinstance(src, file):
@@ -37,7 +38,7 @@ class IRT_MMLE_2PL(object):
         print('Data loading is complete.')
 
         self.data_ref = loader.data_storage()
-        self.data_ref.setup(uids,eids,atags)
+        self.data_ref.setup(uids, eids, atags)
 
     def load_param(self, theta_bnds, alpha_bnds, beta_bnds):
         # TODO: allow for a more flexible parameter setting
@@ -50,12 +51,12 @@ class IRT_MMLE_2PL(object):
 
         # load the solver
         boundary = {'alpha': alpha_bnds,
-                    'beta':  beta_bnds}
+                    'beta': beta_bnds}
 
-        solver_type    = 'gradient'
+        solver_type = 'gradient'
         is_constrained = True
-        max_iter       = 10
-        tol            = 1e-3
+        max_iter = 10
+        tol = 1e-3
 
         self._init_solver_param(is_constrained, boundary, solver_type, max_iter, tol)
 
@@ -78,9 +79,9 @@ class IRT_MMLE_2PL(object):
         self.posterior_theta_distr = np.zeros((self.data_ref.num_user, self.num_theta))
 
         # TODO: enable the stopping condition
-        num_iter      = 1
+        num_iter = 1
         self.ell_list = []
-        avg_prob_t0   = 0
+        avg_prob_t0 = 0
 
         while True:
             iter_start_time = time.time()
@@ -119,7 +120,6 @@ class IRT_MMLE_2PL(object):
             avg_prob_t0 = avg_prob
             num_iter += 1
 
-
             if (num_iter > self.max_iter):
                 print('EM does not converge within max iteration')
                 break
@@ -139,6 +139,7 @@ class IRT_MMLE_2PL(object):
     '''
     Main Routine
     '''
+
     def _exp_step(self):
         '''
         Basic Math:
@@ -187,8 +188,8 @@ class IRT_MMLE_2PL(object):
 
             # assemble the expected data
             j = self.data_ref.eidx[eid]
-            expected_right_count = self.item_expected_right_bytheta[:,j]
-            expected_wrong_count = self.item_expected_wrong_bytheta[:,j]
+            expected_right_count = self.item_expected_right_bytheta[:, j]
+            expected_wrong_count = self.item_expected_wrong_bytheta[:, j]
             input_data = [expected_right_count, expected_wrong_count]
             opt_worker.load_res_data(input_data)
 
@@ -200,7 +201,7 @@ class IRT_MMLE_2PL(object):
                 # converge, use the constrained version
                 try:
                     est_param = opt_worker.solve_param_linear(self.is_constrained)
-                except Exception  as  e:
+                except Exception as e:
                     if str(e) == 'Optimizer fails to find solution. Try constrained search.':
                         est_param = opt_worker.solve_param_linear(True)
                     else:
@@ -212,18 +213,19 @@ class IRT_MMLE_2PL(object):
             self.item_param_dict[eid]['beta'] = est_param[0]
             self.item_param_dict[eid]['alpha'] = est_param[1]
 
-        #### [B] max for theta density
+        # [B] max for theta density
         # pi = r_k/(w_k+r_k)
-        r_vec = np.sum(self.item_expected_right_bytheta,axis=1)
-        w_vec = np.sum(self.item_expected_wrong_bytheta,axis=1)
+        r_vec = np.sum(self.item_expected_right_bytheta, axis=1)
+        w_vec = np.sum(self.item_expected_wrong_bytheta, axis=1)
         self.theta_density = np.divide(r_vec, r_vec+w_vec)
 
     '''
     Auxuliary function
     '''
+
     def _loadFromTuples(self, data):
-        uids  = []
-        eids  = []
+        uids = []
+        eids = []
         atags = []
         if len(data) == 0:
             raise Exception('Data is empty.')
@@ -238,8 +240,8 @@ class IRT_MMLE_2PL(object):
     def _loadFromHandle(self, fp, sep=','):
         # Default format is comma separated files,
         # Only int is allowed within the environment
-        uids  = []
-        eids  = []
+        uids = []
+        eids = []
         atags = []
 
         for line in fp:
@@ -254,12 +256,12 @@ class IRT_MMLE_2PL(object):
     def _init_solver_param(self, is_constrained, boundary,
                            solver_type, max_iter, tol):
         # initialize bounds
-        self.is_constrained  = is_constrained
-        self.alpha_bnds      = boundary['alpha']
-        self.beta_bnds       = boundary['beta']
-        self.solver_type     = solver_type
-        self.max_iter        = max_iter
-        self.tol             = tol
+        self.is_constrained = is_constrained
+        self.alpha_bnds = boundary['alpha']
+        self.beta_bnds = boundary['beta']
+        self.solver_type = solver_type
+        self.max_iter = max_iter
+        self.tol = tol
 
         if solver_type == 'gradient' and not is_constrained:
             raise Exception('BFGS has to be constrained')
@@ -274,12 +276,11 @@ class IRT_MMLE_2PL(object):
 
     def _init_user_param(self, theta_min, theta_max, num_theta):
         self.theta_prior_val = np.linspace(theta_min, theta_max, num=num_theta)
-        self.num_theta       = len(self.theta_prior_val)
-        if self.num_theta   != num_theta:
+        self.num_theta = len(self.theta_prior_val)
+        if self.num_theta != num_theta:
             raise Exception('Theta initialization failed')
         # store the prior density
-        self.theta_density   = np.ones(num_theta)/num_theta
-
+        self.theta_density = np.ones(num_theta)/num_theta
 
     def __update_theta_distr(self):
 
@@ -298,22 +299,22 @@ class IRT_MMLE_2PL(object):
             # find all the items
             log_list = self.data_ref.get_log(uid)
             # create eid list and atag list
-            num_log  = len(log_list)
+            num_log = len(log_list)
             # create temp likelihood vector for each possible value of theta
-            likelihood_vec= np.zeros(self.num_theta)
+            likelihood_vec = np.zeros(self.num_theta)
             # calculate
             for k in range(self.num_theta):
-                theta     = self.theta_prior_val[k]
+                theta = self.theta_prior_val[k]
                 # calculate the likelihood
-                ell       = 0.0
+                ell = 0.0
                 for m in range(num_log):
-                    eid   = log_list[m][0]
+                    eid = log_list[m][0]
                     alpha = self.item_param_dict[eid]['alpha']
-                    beta  = self.item_param_dict[eid]['beta']
-                    c     = self.item_param_dict[eid]['c']
-                    atag  = log_list[m][1]
-                    ell   += clib.log_likelihood_2PL(atag, 1.0-atag,
-                                                          theta, alpha, beta, c)
+                    beta = self.item_param_dict[eid]['beta']
+                    c = self.item_param_dict[eid]['c']
+                    atag = log_list[m][1]
+                    ell += clib.log_likelihood_2PL(atag, 1.0-atag,
+                                                   theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
 
@@ -323,7 +324,7 @@ class IRT_MMLE_2PL(object):
             # calculate the posterior
             # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
             marginal = tools.logsum(log_joint_prob_vec)
-            self.posterior_theta_distr[i,:] = np.exp(log_joint_prob_vec - marginal)
+            self.posterior_theta_distr[i, :] = np.exp(log_joint_prob_vec - marginal)
 
         # When the loop finish, check if the theta_density adds up to unity for each user
         check_user_distr_marginal = np.sum(self.posterior_theta_distr, axis=1)
@@ -343,9 +344,8 @@ class IRT_MMLE_2PL(object):
             # condition on the posterior ability, what is the expected count of
             # students get it right
             # TODO: for readability, should specify the rows and columns
-            self.item_expected_right_bytheta[:,j] = np.sum(self.posterior_theta_distr[right_uid_vec,:], axis = 0)
-            self.item_expected_wrong_bytheta[:,j] = np.sum(self.posterior_theta_distr[wrong_uid_vec,:], axis = 0)
-
+            self.item_expected_right_bytheta[:, j] = np.sum(self.posterior_theta_distr[right_uid_vec, :], axis=0)
+            self.item_expected_wrong_bytheta[:, j] = np.sum(self.posterior_theta_distr[wrong_uid_vec, :], axis=0)
 
     def __calc_data_likelihood(self):
         # calculate the likelihood for the data set
@@ -364,12 +364,11 @@ class IRT_MMLE_2PL(object):
                 c = self.item_param_dict[eid]['c']
 
                 ell += clib.log_likelihood_2PL(atag, 1-atag,
-                                                    theta, alpha, beta, c)
+                                               theta, alpha, beta, c)
         return ell
 
     def __calc_theta(self):
         self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
-
 
     '''
     Experimental
@@ -404,4 +403,3 @@ class IRT_MMLE_2PL(object):
                     # cap at 0.5
                     self.item_param_dict[eid]['c'] = min(right_cnt/num_guesser, 0.5)
     '''
-

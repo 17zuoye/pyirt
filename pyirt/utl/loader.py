@@ -32,7 +32,7 @@ if hasattr(diskdb, "hashopen"):
 import collections as cos
 
 
-def from_matrix_to_list(indata_file, sep=',',header=False, is_uid=False):
+def from_matrix_to_list(indata_file, sep=',', header=False, is_uid=False):
     # assume the data takes the following format
     # (uid,) item1, item2, item3
     # (1,)   0,     1,     1
@@ -42,15 +42,15 @@ def from_matrix_to_list(indata_file, sep=',',header=False, is_uid=False):
 
     result_list = []
 
-    with open(indata_file,'r') as f:
+    with open(indata_file, 'r') as f:
         for line in f:
             if is_skip and header:
                 # if there is a header, skip
-                is_skip=False
+                is_skip = False
                 continue
             segs = line.strip().split(sep)
 
-            if len(segs)==0:
+            if len(segs) == 0:
                 continue
 
             if not is_init:
@@ -87,10 +87,10 @@ def load_sim_data(sim_data_file):
             if line.strip() == '':
                 continue
 
-            result, uid, eid, theta, beta, alpha= line.strip().split(',')
+            result, uid, eid, theta, beta, alpha = line.strip().split(',')
             test_data.append((int(uid), int(eid), int(result)))
             if eid not in test_param:
-                test_param[int(eid)]={'alpha':float(alpha), 'beta':float(beta)}
+                test_param[int(eid)] = {'alpha': float(alpha), 'beta': float(beta)}
     return test_data, test_param
 
 def load_dbm(dmb_val):
@@ -99,25 +99,23 @@ def load_dbm(dmb_val):
     log_list = []
     # last element is empty
     for i in xrange(len(pairs)-1):
-        idstr,flagstr = pairs[i].split(',')
+        idstr, flagstr = pairs[i].split(',')
         log_list.append((int(idstr), int(flagstr)))
     return log_list
 
 
-
-
-def parse_item_paramer(item_param_dict, output_file = None):
+def parse_item_paramer(item_param_dict, output_file=None):
 
     if output_file is not None:
         # open the file
-        out_fh = open(output_file,'w')
+        out_fh = open(output_file, 'w')
 
     sorted_eids = sorted(item_param_dict.keys())
 
     for eid in sorted_eids:
         param = item_param_dict[eid]
-        alpha_val = np.round(param['alpha'],decimals=2)
-        beta_val = np.round(param['beta'],decimals=2)
+        alpha_val = np.round(param['alpha'], decimals=2)
+        beta_val = np.round(param['beta'], decimals=2)
         if output_file is None:
             print eid, alpha_val, beta_val
         else:
@@ -130,7 +128,7 @@ Build a data storage facility that allows for memory dict and diskdb dict
 class data_storage(object):
 
     def setup(self, uids, eids, atags, mode='memory',
-              tmp_dir = None, is_mount = False, user_name = None):
+              tmp_dir=None, is_mount=False, user_name=None):
         # mode could be 'memory', which uses RAM, or 'dbm', which uses the hard disk.
         # When in 'dbm', set is_mount = False and the user_name to allows for
         # RAMdisk. However, it is not nearly as fast as memory when data is
@@ -144,9 +142,9 @@ class data_storage(object):
             # by default,do NOT mount the temp dir in memory, unless otherwise specified
             if is_mount:
                 # create the directory
-                subprocess.call(["sudo", "mount","-t","tmpfs","tmpfs",tmp_dir])
+                subprocess.call(["sudo", "mount", "-t", "tmpfs", "tmpfs", tmp_dir])
                 # transfer ownwership
-                subprocess.call(["sudo","chown",user_name+":root",tmp_dir])
+                subprocess.call(["sudo", "chown", user_name+":root", tmp_dir])
 
             self.tmp_dir = tmp_dir  # passed in for later cache
 
@@ -161,7 +159,6 @@ class data_storage(object):
 
         self._init_data_param()
         print("--- Process: %f secs ---" % np.round((time.time()-start_time)))
-
 
        # initialize some intermediate variables used in the E step
         start_time = time.time()
@@ -185,8 +182,8 @@ class data_storage(object):
         self.user2item = cos.defaultdict(list)
 
         for i in xrange(self.num_log):
-            eid  = eids[i]
-            uid  = uids[i]
+            eid = eids[i]
+            uid = uids[i]
             atag = atags[i]
             # add to the data dictionary
             self.item2user[eid].append((uid, atag))
@@ -214,8 +211,8 @@ class data_storage(object):
         self.num_log = len(uids)
 
         for i in xrange(self.num_log):
-            eid  = eids[i]
-            uid  = uids[i]
+            eid = eids[i]
+            uid = uids[i]
             atag = atags[i]
             # if not initiated, init with empty str
             if str(eid) not in self.item2user:
@@ -257,7 +254,7 @@ class data_storage(object):
         for eid, log_result in self.item2user.iteritems():
             for log in log_result:
                 atag = log[1]
-                uid  = log[0]
+                uid = log[0]
                 uid_idx = self.uidx[uid]
                 if atag == 1:
                     self.right_map[eid].append(uid_idx)
@@ -280,7 +277,6 @@ class data_storage(object):
         for j in xrange(self.num_item):
             self.eidx[self.eid_vec[j]] = j
 
-
     def get_log(self, uid):
         if self.mode == 'bdm':
             log_list = load_dbm(self.user2item_db['%d' % uid])
@@ -292,14 +288,11 @@ class data_storage(object):
 
     def get_rwmap(self, eid):
         if self.mode == 'bdm':
-            right_uid_vec = [int(x) for x in self.right_map[str(eid)].split(',') ]
-            wrong_uid_vec = [int(x) for x in self.wrong_map[str(eid)].split(',') ]
+            right_uid_vec = [int(x) for x in self.right_map[str(eid)].split(',')]
+            wrong_uid_vec = [int(x) for x in self.wrong_map[str(eid)].split(',')]
         elif self.mode == 'memory':
             right_uid_vec = self.right_map[eid]
             wrong_uid_vec = self.wrong_map[eid]
         else:
             raise Exception('Unknown mode of storage.')
         return right_uid_vec, wrong_uid_vec
-
-
-
