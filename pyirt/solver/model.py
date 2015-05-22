@@ -9,7 +9,6 @@ The current version only deals with unidimension theta
 
 '''
 import numpy as np
-import os
 import time
 
 from ..utl import clib, tools, loader

@@ -1,3 +1,6 @@
+# -*-coding:utf-8-*-
+
+
 import numpy as np
 from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar
@@ -9,6 +12,7 @@ from ..utl import clib, tools
 # TODO: There maybe overflowing issue in data
 # TODO: Enable the calibration for two parameter estimation
 np.seterr(over='raise')
+
 
 class irt_2PL_Optimizer(object):
 
@@ -113,9 +117,10 @@ class irt_2PL_Optimizer(object):
                            options={'disp': False})
 
         if not res.success:
-            raise Exception('Algorithm failed.')
+            raise Exception("Algorithm failed because " + res.message)
 
         return res.x
+
 
 class irt_factor_optimizer(object):
 
