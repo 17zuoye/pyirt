@@ -46,13 +46,13 @@ class TestItemSolverNoGuess(unittest.TestCase):
     def test_linear_unconstrained(self):
         self.solver.set_initial_guess((0.0, 1.0))
         est_param = self.solver.solve_param_linear(is_constrained=False)
-        self.assertTrue(abs(est_param[0]-self.beta) < 0.07 and abs(est_param[1]-self.alpha) < 0.05)
+        self.assertTrue(abs(est_param[0] - self.beta) < 0.07 and abs(est_param[1] - self.alpha) < 0.05)
 
     def test_linear_constrained(self):
         self.solver.set_initial_guess((0.0, 1.0))
         self.solver.set_bounds([(-4.0, 4.0), (0.25, 2)])
         est_param = self.solver.solve_param_linear(is_constrained=True)
-        self.assertTrue(abs(est_param[0]-self.beta) < 0.2 and abs(est_param[1]-self.alpha) < 0.2)  # orig is 0.02
+        self.assertTrue(abs(est_param[0] - self.beta) < 0.2 and abs(est_param[1] - self.alpha) < 0.2)  # orig is 0.02
 
     # def test_gradient_unconstrained(self):
     #    self.solver.set_initial_guess((0.0,2.0))
@@ -63,7 +63,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
         self.solver.set_initial_guess((0.0, 1.0))
         self.solver.set_bounds([(-4.0, 4.0), (0.25, 2)])
         est_param = self.solver.solve_param_gradient(is_constrained=True)
-        self.assertTrue(abs(est_param[0]-self.beta) < 0.1 and abs(est_param[1]-self.alpha) < 0.1)
+        self.assertTrue(abs(est_param[0] - self.beta) < 0.1 and abs(est_param[1] - self.alpha) < 0.1)
 
 
 class TestUserSolver(unittest.TestCase):
@@ -72,7 +72,7 @@ class TestUserSolver(unittest.TestCase):
         # initialize the data
         n = 1000
         self.theta = 1.5
-        self.alpha_vec = np.random.random(n)+1
+        self.alpha_vec = np.random.random(n) + 1
         self.beta_vec = np.random.normal(loc=0.0, scale=2.0, size=n)
         self.c_vec = np.zeros(n)
         y1 = []
@@ -99,21 +99,21 @@ class TestUserSolver(unittest.TestCase):
     def test_linear_unconstrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_linear(is_constrained=False)
-        self.assertTrue(abs(est_param-self.theta) < 0.1)
+        self.assertTrue(abs(est_param - self.theta) < 0.1)
 
     def test_gradient_constrained(self):
         self.solver.set_initial_guess(0.0)
         self.solver.set_bounds([(-6, 6)])
         est_param = self.solver.solve_param_gradient(is_constrained=True)
-        self.assertTrue(abs(est_param-self.theta) < 0.1)
+        self.assertTrue(abs(est_param - self.theta) < 0.1)
 
     def test_hessian_unconstrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_hessian()
-        self.assertTrue(abs(est_param-self.theta) < 0.2)  # orig is 0.1
+        self.assertTrue(abs(est_param - self.theta) < 0.2)  # orig is 0.1
 
     def test_scalar_constrained(self):
         self.solver.set_initial_guess(0.0)
         self.solver.set_bounds((-6, 6))
         est_param = self.solver.solve_param_scalar()
-        self.assertTrue(abs(est_param-self.theta) < 0.2)  # orig is 0.1
+        self.assertTrue(abs(est_param - self.theta) < 0.2)  # orig is 0.1

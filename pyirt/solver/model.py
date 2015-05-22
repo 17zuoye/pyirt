@@ -87,11 +87,11 @@ class IRT_MMLE_2PL(object):
             # add in time block
             start_time = time.time()
             self._exp_step()
-            print("--- E step: %f secs ---" % np.round((time.time()-start_time)))
+            print("--- E step: %f secs ---" % np.round((time.time() - start_time)))
 
             start_time = time.time()
             self._max_step()
-            print("--- M step: %f secs ---" % np.round((time.time()-start_time)))
+            print("--- M step: %f secs ---" % np.round((time.time() - start_time)))
 
             self.__calc_theta()
 
@@ -101,9 +101,9 @@ class IRT_MMLE_2PL(object):
             # self.update_guess_param()
 
             # the goal is to maximize the "average" probability
-            avg_prob = np.exp(self.__calc_data_likelihood()/self.data_ref.num_log)
+            avg_prob = np.exp(self.__calc_data_likelihood() / self.data_ref.num_log)
             self.ell_list.append(avg_prob)
-            print("--- all: %f secs ---" % np.round((time.time()-iter_start_time)))
+            print("--- all: %f secs ---" % np.round((time.time() - iter_start_time)))
             print(avg_prob)
 
             # if the algorithm improves, then ell > ell_t0
@@ -216,7 +216,7 @@ class IRT_MMLE_2PL(object):
         # pi = r_k/(w_k+r_k)
         r_vec = np.sum(self.item_expected_right_bytheta, axis=1)
         w_vec = np.sum(self.item_expected_wrong_bytheta, axis=1)
-        self.theta_density = np.divide(r_vec, r_vec+w_vec)
+        self.theta_density = np.divide(r_vec, r_vec + w_vec)
 
     '''
     Auxuliary function
@@ -279,7 +279,7 @@ class IRT_MMLE_2PL(object):
         if self.num_theta != num_theta:
             raise Exception('Theta initialization failed')
         # store the prior density
-        self.theta_density = np.ones(num_theta)/num_theta
+        self.theta_density = np.ones(num_theta) / num_theta
 
     def __update_theta_distr(self):
 
@@ -312,7 +312,7 @@ class IRT_MMLE_2PL(object):
                     beta = self.item_param_dict[eid]['beta']
                     c = self.item_param_dict[eid]['c']
                     atag = log_list[m][1]
-                    ell += clib.log_likelihood_2PL(atag, 1.0-atag,
+                    ell += clib.log_likelihood_2PL(atag, 1.0 - atag,
                                                    theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
@@ -362,7 +362,7 @@ class IRT_MMLE_2PL(object):
                 beta = self.item_param_dict[eid]['beta']
                 c = self.item_param_dict[eid]['c']
 
-                ell += clib.log_likelihood_2PL(atag, 1-atag,
+                ell += clib.log_likelihood_2PL(atag, 1 - atag,
                                                theta, alpha, beta, c)
         return ell
 

@@ -6,7 +6,6 @@ from ..utl import clib, tools
 
 from ..solver import optimizer
 
-# import cython
 
 class bayesian_estimator(object):
 
@@ -15,12 +14,12 @@ class bayesian_estimator(object):
         self.num_theta = num_theta
         if dist_name == 'uniform':
             # the density is uniform
-            self.theta_density = np.ones(num_theta)/num_theta
+            self.theta_density = np.ones(num_theta) / num_theta
 
         elif dist_name == 'beta':
             # centered beta
             # rescale to move away from the boundary
-            self.theta_density = beta.pdf((self.theta_val-theta_min)/(theta_max-theta_min+0.1), 2, 2)
+            self.theta_density = beta.pdf((self.theta_val - theta_min) / (theta_max - theta_min + 0.1), 2, 2)
             # renormalize
             self.theta_density = self.theta_density / sum(self.theta_density)
         else:
@@ -41,7 +40,7 @@ class bayesian_estimator(object):
                 alpha = log[1][0]
                 beta = log[1][1]
                 c = log[1][2]
-                ell += clib.log_likelihood_2PL(atag, 1.0-atag, theta, alpha, beta, c)
+                ell += clib.log_likelihood_2PL(atag, 1.0 - atag, theta, alpha, beta, c)
             # now update the density
             likelihood_vec[k] = ell
 
@@ -56,7 +55,7 @@ class bayesian_estimator(object):
 
         # expected value
         theta_mean = np.dot(self.theta_density, self.theta_val)
-        #theta_var = np.dot(self.theta_density, self.theta_val**2) - theta_mean**2
+        # theta_var = np.dot(self.theta_density, self.theta_val**2) - theta_mean**2
 
         theta_hat = theta_mean
         return theta_hat
@@ -76,7 +75,7 @@ class MLE_estimator(object):
         cs = []
         for log in logs:
             y1.append(log[0])
-            y0.append(1.0-log[0])
+            y0.append(1.0 - log[0])
             alphas.append(log[1][0])
             betas.append(log[1][1])
             cs.append(log[1][2])

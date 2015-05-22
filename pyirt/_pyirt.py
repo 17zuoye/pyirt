@@ -1,7 +1,7 @@
-import os
-import sys
+# -*-coding:utf-8-*-
 
 from .solver import model
+
 
 def irt(src, theta_bnds=[-4, 4],
         alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param='default',
