@@ -1,5 +1,6 @@
-from ._pyirt import *
+__all__ = ["irt", "model", "solver", "utl"]
+
+from ._pyirt import irt, model
 
 import solver
 import utl
-import test
