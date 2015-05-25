@@ -198,9 +198,7 @@ class IRT_MMLE_2PL(object):
                 try:
                     est_param = opt_worker.solve_param_gradient(self.is_constrained)
                 except Exception as e:
-                    print(input_data[0])
-                    print(input_data[1])
-                    raise e
+                    raise ValueError("Exception:%s, InputData:%s" % (e.value, input_data))
             elif self.solver_type == 'linear':
                 # if the alogrithm is nelder-mead and the optimization fails to
                 # converge, use the constrained version
