@@ -1,6 +1,5 @@
 import tools
 import loader
-import pyximport; pyximport.install()
+import pyximport
+pyximport.install()
 import clib
-
-

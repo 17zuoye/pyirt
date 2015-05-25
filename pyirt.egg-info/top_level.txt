@@ -1,4 +1,0 @@
-pyirt/utl
-pyirt
-pyirt/solver
-pyirt/test

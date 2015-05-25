@@ -1,12 +1,12 @@
-import os
-import sys
+# -*-coding:utf-8-*-
 
 from .solver import model
 
-def irt(src, theta_bnds=[-4,4],
-        alpha_bnds = [0.25,2], beta_bnds=[-2,2], in_guess_param = 'default',
+
+def irt(src, theta_bnds=[-4, 4],
+        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param='default',
         model_spec='2PL',
-        mode = 'memory',is_mount = False, user_name = None):
+        mode='memory', is_mount=False, user_name=None):
 
     if model_spec == '2PL':
         mod = model.IRT_MMLE_2PL()
@@ -25,6 +25,4 @@ def irt(src, theta_bnds=[-4,4],
     item_param_dict = mod.get_item_param()
     user_param_dict = mod.get_user_param()
 
-
     return item_param_dict, user_param_dict
-

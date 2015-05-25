@@ -1,5 +1,12 @@
 pyirt
 =====
+[![Build Status](https://img.shields.io/travis/17zuoye/pyirt/master.svg?style=flat)](https://travis-ci.org/17zuoye/pyirt)
+[![Coverage Status](https://coveralls.io/repos/17zuoye/pyirt/badge.svg)](https://coveralls.io/r/17zuoye/pyirt)
+[![Health](https://landscape.io/github/17zuoye/pyirt/master/landscape.svg?style=flat)](https://landscape.io/github/17zuoye/pyirt/master)
+[![Download](https://img.shields.io/pypi/dm/pyirt.svg?style=flat)](https://pypi.python.org/pypi/pyirt)
+[![License](https://img.shields.io/pypi/l/pyirt.svg?style=flat)](https://pypi.python.org/pypi/pyirt)
+
+
 
 A python library of IRT algorithm designed to cope with sparse data structure.
 
