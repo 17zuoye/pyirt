@@ -194,10 +194,16 @@ class IRT_MMLE_2PL(object):
             expected_wrong_count = self.item_expected_wrong_bytheta[:, j]
             input_data = [expected_right_count, expected_wrong_count]
             opt_worker.load_res_data(input_data)
+            # if one wishes to inspect the model input, print the input data
 
             # solve by L-BFGS-B
             if self.solver_type == 'gradient':
-                est_param = opt_worker.solve_param_gradient(self.is_constrained)
+                try:
+                    est_param = opt_worker.solve_param_gradient(self.is_constrained)
+                except Exception as e:
+                    print(input_data[0])
+                    print(input_data[1])
+                    raise e
             elif self.solver_type == 'linear':
                 # if the alogrithm is nelder-mead and the optimization fails to
                 # converge, use the constrained version
