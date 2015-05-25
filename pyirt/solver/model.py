@@ -291,7 +291,7 @@ class IRT_MMLE_2PL(object):
                 p_t(theta|data_i,param) = P_t(theta,data_i,param)/p_t(data_i,param)
             '''
             # find all the items
-            likelihood_vec= np.zeros(num_theta)
+            likelihood_vec = np.zeros(num_theta)
             # calculate
             for k in xrange(num_theta):
                 theta     = theta_prior_val[k]
@@ -303,8 +303,8 @@ class IRT_MMLE_2PL(object):
                     alpha = item_param_dict[eid]['alpha']
                     beta  = item_param_dict[eid]['beta']
                     c     = item_param_dict[eid]['c']
-                    ell   += clib.log_likelihood_2PL(atag, 1.0-atag,
-                                                          theta, alpha, beta, c)
+                    ell   += clib.log_likelihood_2PL(atag, 1.0 - atag,
+                                                     theta, alpha, beta, c)
 
                 # now update the density
                 likelihood_vec[k] = ell
@@ -325,13 +325,12 @@ class IRT_MMLE_2PL(object):
             return posterior_vec
         """
 
-
         # [A] calculate p(data,param|theta)
         # TODO: speed it up
         for i in xrange(self.data_ref.num_user):
-            self.posterior_theta_distr[i,:] = update(self.data_ref.get_log(self.data_ref.uid_vec[i]),
-                                        self.num_theta, self.theta_prior_val, self.theta_density,
-                                        self.item_param_dict)
+            self.posterior_theta_distr[i, :] = update(self.data_ref.get_log(self.data_ref.uid_vec[i]),
+                                                      self.num_theta, self.theta_prior_val, self.theta_density,
+                                                      self.item_param_dict)
         '''
         # create temporay variable for the loops
         ntheta = self.num_theta

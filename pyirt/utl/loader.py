@@ -56,14 +56,14 @@ def from_matrix_to_list(indata_file, sep=',', header=False, is_uid=False):
             if not is_init:
                 # calibrate item id
                 if is_uid:
-                    num_item = len(segs)-1
+                    num_item = len(segs) - 1
                 else:
                     num_item = len(segs)
 
             # parse
             for j in range(num_item):
                 if is_uid:
-                    idx = j+1
+                    idx = j + 1
                 else:
                     idx = j
                 result_list.append((uid, j, int(segs[idx])))
@@ -93,12 +93,13 @@ def load_sim_data(sim_data_file):
                 test_param[int(eid)] = {'alpha': float(alpha), 'beta': float(beta)}
     return test_data, test_param
 
+
 def load_dbm(dmb_val):
     # the format is 'id,flag;'*n
     pairs = dmb_val.split(';')
     log_list = []
     # last element is empty
-    for i in xrange(len(pairs)-1):
+    for i in xrange(len(pairs) - 1):
         idstr, flagstr = pairs[i].split(',')
         log_list.append((int(idstr), int(flagstr)))
     return log_list
@@ -125,6 +126,7 @@ def parse_item_paramer(item_param_dict, output_file=None):
 Build a data storage facility that allows for memory dict and diskdb dict
 '''
 
+
 class data_storage(object):
 
     def setup(self, uids, eids, atags, mode='memory',
@@ -144,7 +146,7 @@ class data_storage(object):
                 # create the directory
                 subprocess.call(["sudo", "mount", "-t", "tmpfs", "tmpfs", tmp_dir])
                 # transfer ownwership
-                subprocess.call(["sudo", "chown", user_name+":root", tmp_dir])
+                subprocess.call(["sudo", "chown", user_name + ":root", tmp_dir])
 
             self.tmp_dir = tmp_dir  # passed in for later cache
 
@@ -158,7 +160,7 @@ class data_storage(object):
             raise Exception('Unknown mode of data storage.')
 
         self._init_data_param()
-        print("--- Process: %f secs ---" % np.round((time.time()-start_time)))
+        print("--- Process: %f secs ---" % np.round((time.time() - start_time)))
 
        # initialize some intermediate variables used in the E step
         start_time = time.time()
@@ -168,7 +170,7 @@ class data_storage(object):
             self._init_right_wrong_map_dbm()
         else:
             raise Exception('Unknown mode of data storage.')
-        print("--- Sparse Mapping: %f secs ---" % np.round((time.time()-start_time)))
+        print("--- Sparse Mapping: %f secs ---" % np.round((time.time() - start_time)))
 
     '''
     Need the following dictionary for esitmation routine
@@ -204,10 +206,10 @@ class data_storage(object):
         '''
 
         # always rewrite
-        os.system("rm -f %" % self.tmp_dir+'/item2user.db')
-        os.system("rm -f %" % self.tmp_dir+'/user2item.db')
-        self.item2user = diskdb.open(self.tmp_dir+'/item2user.db', 'c')
-        self.user2item = diskdb.open(self.tmp_dir+'/user2item.db', 'c')
+        os.system("rm -f %" % self.tmp_dir + '/item2user.db')
+        os.system("rm -f %" % self.tmp_dir + '/user2item.db')
+        self.item2user = diskdb.open(self.tmp_dir + '/item2user.db', 'c')
+        self.user2item = diskdb.open(self.tmp_dir + '/user2item.db', 'c')
         self.num_log = len(uids)
 
         for i in xrange(self.num_log):
@@ -224,10 +226,10 @@ class data_storage(object):
             self.user2item['%d' % uid] += '%d,%d;' % (eid, atag)
 
     def _init_right_wrong_map_bdm(self):
-        os.system("rm -f %" % self.tmp_dir+'/right_map.db')
-        os.system("rm -f %" % self.tmp_dir+'/wrong_map.db')
-        self.right_map = diskdb.open(self.tmp_dir+'/right_map.db', 'c')
-        self.wrong_map = diskdb.open(self.tmp_dir+'/wrong_map.db', 'c')
+        os.system("rm -f %" % self.tmp_dir + '/right_map.db')
+        os.system("rm -f %" % self.tmp_dir + '/wrong_map.db')
+        self.right_map = diskdb.open(self.tmp_dir + '/right_map.db', 'c')
+        self.wrong_map = diskdb.open(self.tmp_dir + '/wrong_map.db', 'c')
 
         for eidstr, log_val_list in self.item2user.iteritems():
             log_result = utl.loader.load_dbm(log_val_list)

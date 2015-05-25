@@ -99,7 +99,8 @@ class TestUserSolver(unittest.TestCase):
     def test_linear_unconstrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_linear(is_constrained=False)
-        self.assertTrue(abs(est_param - self.theta) < 0.2)  # orig is 0.1
+        offset = abs(est_param - self.theta)
+        self.assertTrue(offset < 0.2, offset)  # orig is 0.1
 
     def test_gradient_constrained(self):
         self.solver.set_initial_guess(0.0)

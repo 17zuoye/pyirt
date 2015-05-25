@@ -140,3 +140,6 @@ class TestIrtFunctions(unittest.TestCase):
         calc_hessian = tools.log_likelihood_factor_hessian(y1, y0, theta, alpha, beta, c)
 
         self.assertTrue(abs(calc_hessian - true_hessian_approx_theta) < 1e-4)
+
+if __name__ == '__main__':
+    unittest.main()

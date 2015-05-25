@@ -17,7 +17,6 @@ def irt_fnc(theta, beta, alpha=1.0, c=0.0):
     return prob
 
 
-
 def log_likelihood_factor_gradient(y1, y0, theta, alpha, beta, c=0.0):
     temp = np.exp(beta + alpha * theta)
     grad = alpha / (1.0 + temp) * (y1 * ((1.0 - c) / (c / temp + 1.0)) - y0 * temp)
@@ -32,15 +31,15 @@ def log_likelihood_factor_hessian(y1, y0, theta, alpha, beta, c=0.0):
 
     return hessian
 
-def log_likelihood_2PL_hessian(y1,y0,theta, alpha, beta, c=0.0):
-    hessian = np.zeros((2,2))
-    x = np.exp(beta + alpha * theta)
-    base = x/(1+x)**2*( y1*(1-c)*(c-x**2)/(c+x)**2 -y0)
 
-    hessian = np.matrix([[1, theta], [theta, theta**2]])*base
+def log_likelihood_2PL_hessian(y1, y0, theta, alpha, beta, c=0.0):
+    hessian = np.zeros((2, 2))
+    x = np.exp(beta + alpha * theta)
+    base = x / (1 + x) ** 2 * (y1 * (1 - c) * (c - x ** 2) / (c + x) ** 2 - y0)
+
+    hessian = np.matrix([[1, theta], [theta, theta ** 2]]) * base
 
     return hessian
-
 
 
 def logsum(logp):

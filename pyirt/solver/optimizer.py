@@ -13,7 +13,6 @@ from ..utl import clib, tools
 np.seterr(over='raise')
 
 
-
 class irt_2PL_Optimizer(object):
 
     def load_res_data(self, res_data):
