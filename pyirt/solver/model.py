@@ -9,11 +9,13 @@ The current version only deals with unidimension theta
 
 '''
 import numpy as np
-import os
 import time
 
 from ..utl import clib, tools, loader
 from ..solver import optimizer
+
+from joblib import Parallel, delayed
+
 
 
 # import cython
@@ -283,48 +285,66 @@ class IRT_MMLE_2PL(object):
 
     def __update_theta_distr(self):
 
-        # TODO: consider shrinkage for the prior update
-        '''
-        Basic Math. Notice that the distribution is user specific
-            P_t(theta,data_i,param) = p(data_i,param|theta)*p_[t-1](theta)
-            p_t(data_i,param) = sum(p_t(theta,data_i,param)) over theta
-            p_t(theta|data_i,param) = P_t(theta,data_i,param)/p_t(data_i,param)
-        '''
-
-        # [A] calculate p(data,param|theta)
-        # TODO: speed it up
-        for i in xrange(self.data_ref.num_user):
-            uid = self.data_ref.uid_vec[i]
+        def update(log_list, num_theta, theta_prior_val, theta_density, item_param_dict):
+            '''
+            Basic Math. Notice that the distribution is user specific
+                P_t(theta,data_i,param) = p(data_i,param|theta)*p_[t-1](theta)
+                p_t(data_i,param) = sum(p_t(theta,data_i,param)) over theta
+                p_t(theta|data_i,param) = P_t(theta,data_i,param)/p_t(data_i,param)
+            '''
             # find all the items
-            log_list = self.data_ref.get_log(uid)
-            # create eid list and atag list
-            num_log  = len(log_list)
-            # create temp likelihood vector for each possible value of theta
-            likelihood_vec= np.zeros(self.num_theta)
+            likelihood_vec= np.zeros(num_theta)
             # calculate
-            for k in range(self.num_theta):
-                theta     = self.theta_prior_val[k]
+            for k in xrange(num_theta):
+                theta     = theta_prior_val[k]
                 # calculate the likelihood
                 ell       = 0.0
-                for m in range(num_log):
-                    eid   = log_list[m][0]
-                    alpha = self.item_param_dict[eid]['alpha']
-                    beta  = self.item_param_dict[eid]['beta']
-                    c     = self.item_param_dict[eid]['c']
-                    atag  = log_list[m][1]
+                for log in log_list:
+                    eid   = log[0]
+                    atag  = log[1]
+                    alpha = item_param_dict[eid]['alpha']
+                    beta  = item_param_dict[eid]['beta']
+                    c     = item_param_dict[eid]['c']
                     ell   += clib.log_likelihood_2PL(atag, 1.0-atag,
                                                           theta, alpha, beta, c)
                 # now update the density
                 likelihood_vec[k] = ell
-
             # ell  = p(param|x), full joint = logp(param|x)+log(x)
-            log_joint_prob_vec = likelihood_vec + np.log(self.theta_density)
+            log_joint_prob_vec = likelihood_vec + np.log(theta_density)
 
             # calculate the posterior
             # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
             marginal = tools.logsum(log_joint_prob_vec)
-            self.posterior_theta_distr[i,:] = np.exp(log_joint_prob_vec - marginal)
+            posterior = np.exp(log_joint_prob_vec - marginal)
+            return posterior
 
+        def parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user):
+
+            posterior_vec = Parallel(n_jobs = 4) (delayed(update)(logs[i],
+                                        ntheta, theta_prior, theta_density, item_param) for i in range(num_user))
+            return posterior_vec
+
+
+        # [A] calculate p(data,param|theta)
+        # TODO: speed it up
+        for i in xrange(self.data_ref.num_user):
+            self.posterior_theta_distr[i,:] = update(self.data_ref.get_log(self.data_ref.uid_vec[i]),
+                                        self.num_theta, self.theta_prior_val, self.theta_density,
+                                        self.item_param_dict)
+        '''
+        # create temporay variable for the loops
+        ntheta = self.num_theta
+        theta_prior = self.theta_prior_val
+        theta_density = self.theta_density
+        item_param = self.item_param_dict
+        num_user = self.data_ref.num_user
+        logs = [self.data_ref.get_log(self.data_ref.uid_vec[i]) for i in range(num_user)]
+        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+        posterior_vec = parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user)
+
+        for i in xrange(self.data_ref.num_user):
+            self.posterior_theta_distr[i,:] = np.exp(posterior_vec[i])
+        '''
         # When the loop finish, check if the theta_density adds up to unity for each user
         check_user_distr_marginal = np.sum(self.posterior_theta_distr, axis=1)
         if any(abs(check_user_distr_marginal - 1.0) > 0.0001):

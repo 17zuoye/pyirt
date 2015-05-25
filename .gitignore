@@ -20,5 +20,8 @@ run.py
 intro-pypi-steps.txt
 other
 *.sh
+build
+dist
+*.egg-info
 
 #git ls-files -ci --exclude-standard -z | xargs -0 git rm --cached

@@ -3,13 +3,13 @@ from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar
 
 from ..utl import clib, tools
-
-
-
 # TODO: The BFGS method is not as precise as the NM method
 # TODO: There maybe overflowing issue in data
 # TODO: Enable the calibration for two parameter estimation
 np.seterr(over='raise')
+
+# let's test PEP
+
 
 class irt_2PL_Optimizer(object):
 
@@ -40,9 +40,10 @@ class irt_2PL_Optimizer(object):
         if len(y0) != num_data:
             raise ValueError('The response data does not match in length.')
         if len(theta_vec) != num_data:
-            raise ValueError('The response data does not match theta vec in length.')
+            raise ValueError('The response data does not match theta\
+                             vec in length.')
 
-        if sum(y1<0)>0 or  sum(y0<0)>0:
+        if sum(y1 < 0) > 0 or sum(y0 < 0) > 0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
         likelihood_vec = [clib.log_likelihood_2PL(y1[i],y0[i],theta_vec[i],
@@ -85,8 +86,10 @@ class irt_2PL_Optimizer(object):
         # deal with expcetions
         if not res.success:
             if not is_constrained and \
-                    res.message == 'Maximum number of function evaluations has been exceeded.':
-                raise Exception('Optimizer fails to find solution. Try constrained search.')
+                    res.message == 'Maximum number of function evaluations\
+                    has been exceeded.':
+                raise Exception('Optimizer fails to find solution.\
+                                Try constrained search.')
             else:
                 raise Exception('Algorithm failed because '+ res.message)
 

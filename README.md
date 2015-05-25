@@ -103,17 +103,26 @@ item_param, user_param = irt(src_fp, in_guess_param = guessParamDict)
 ```
 
 
-VI.Performance Check
+VI.Performance
 =======
-The likelihood is not stable in terms of converging. 
-To use max iteration improve the performance compared to the MIRT/LTM package
 
-Simulation shows that (with proper bounds), the pyirt is more stable in
-estimating the 2PL model when the item parameters are constrained.
+## Cython Optimization
+The crucial function is log likelihood evaluation, which is implemented in
+Cython. At 1 million records scale, it halves the run time.
 
-The performance improves because it prevents alpha and beta going too
-large when the item is too easy. 
+## Why no parallel
+Multi-processing in Python does not accpet class method.
 
+In addition, none of the calculation is particular computation heavy. The
+communication cost over-weighs the parallel gain.
+
+## Minimization solver
+The scipy minimize is as good as cvxopt.cp and matlab fmincon on item parameter
+estimation to the 6th decimal point, which can be viewed as identical for all
+practical purposes.
+
+However, the convergence is pretty slow. It requires about 10k obeverations per
+item to recover the parameter to the 0.01 precision.
 
 
 VII.ToDos
@@ -126,11 +135,7 @@ VII.ToDos
 
 (3) The solver cannot handle group constraints.
 
-## Algorithm
-(1) Introduce parallel computing
 
-(2) Scipy optimize routine is not as good as the matlab fmincon, consider use a
-c-plugin from matlab
 
 
 VIII.Acknowledgement

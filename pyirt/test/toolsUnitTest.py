@@ -97,6 +97,32 @@ class TestIrtFunctions(unittest.TestCase):
         self.assertTrue(abs(calc_gradient[1] - true_gradient_approx_alpha) < 1e-4)
 
 
+    def test_log_item_hessian(self):
+        delta = 0.00001
+        y1 = 1.0
+        y0 = 2.0
+        theta = -2.0
+        alpha = 1.0
+        beta = 0.0
+        c = 0.0
+
+        calc_hessian = tools.log_likelihood_2PL_hessian(y1,y0,theta,alpha,beta,c)
+
+
+        true_hessian_approx_alpha2 = (clib.log_likelihood_2PL_gradient(y1,y0,theta,alpha+delta,beta,c)[1] - \
+            clib.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta,c)[1])/delta
+
+        true_hessian_approx_alphabeta = (clib.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta+delta,c)[1] - \
+            clib.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta,c)[1])/delta
+
+        true_hessian_approx_beta2 = (clib.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta+delta,c)[0] - \
+            clib.log_likelihood_2PL_gradient(y1,y0,theta,alpha,beta,c)[0])/delta
+
+        self.assertTrue(abs(calc_hessian[1,1] - true_hessian_approx_alpha2 ) < 1e-4)
+        self.assertTrue(abs(calc_hessian[0,0] - true_hessian_approx_beta2) < 1e-4)
+        self.assertTrue(abs(calc_hessian[0,1] - true_hessian_approx_alphabeta) < 1e-4)
+
+
     def test_log_factor_gradient(self):
         delta = 0.00001
         y1 = 1.0

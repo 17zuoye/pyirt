@@ -18,6 +18,7 @@ for line in src_handle:
         continue
     uidstr, eidstr, atagstr = line.strip().split(',')
     src_data.append((int(uidstr),int(eidstr),int(atagstr)))
+src_handle.close()
 
 item_param,user_param = irt(src_data)
 
