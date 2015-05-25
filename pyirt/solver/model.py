@@ -13,12 +13,9 @@ import time
 
 from ..utl import clib, tools, loader
 from ..solver import optimizer
-
-from joblib import Parallel, delayed
-
-
-
 # import cython
+
+
 class IRT_MMLE_2PL(object):
 
     '''
@@ -320,12 +317,13 @@ class IRT_MMLE_2PL(object):
             posterior = np.exp(log_joint_prob_vec - marginal)
             return posterior
 
+        """
         def parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user):
 
             posterior_vec = Parallel(n_jobs = 4) (delayed(update)(logs[i],
                                         ntheta, theta_prior, theta_density, item_param) for i in range(num_user))
             return posterior_vec
-
+        """
 
 
         # [A] calculate p(data,param|theta)
