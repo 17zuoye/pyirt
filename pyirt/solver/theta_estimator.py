@@ -45,7 +45,8 @@ class bayesian_estimator(object):
             likelihood_vec[k] = ell
 
         # ell  = p(param|x), full joint = logp(param|x)+log(x)
-        log_joint_prob_vec = likelihood_vec + np.log(self.theta_density)
+        # Fix np.log, see http://stackoverflow.com/questions/13497891/python-getting-around-division-by-zero
+        log_joint_prob_vec = likelihood_vec + np.log(self.theta_density.clip(min=0.0000000001))
         # calculate the posterior
         # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
         marginal = tools.logsum(log_joint_prob_vec)
