@@ -40,10 +40,9 @@ class irt_2PL_Optimizer(object):
         # check for equal length between y1,y0 and theta_vec
         num_data = len(y1)
         if len(y0) != num_data:
-            raise ValueError('The response data does not match in length.')
+            raise ValueError('The response data does not match in length. y0:%s, y1:%s' % (y0, y1))
         if len(theta_vec) != num_data:
-            raise ValueError('The response data does not match theta\
-                             vec in length.')
+            raise ValueError('The response data does not match theta vec in length. theta_vec:%s, num_data:%s' % (theta_vec, num_data))
 
         if sum(y1 < 0) > 0 or sum(y0 < 0) > 0:
             raise ValueError('y1 or y0 contains negative count.')
@@ -122,6 +121,28 @@ class irt_2PL_Optimizer(object):
             raise Exception("Algorithm failed because " + res.message)
 
         return res.x
+
+    def solve_param_mix(self, is_constrained=True):
+        """
+        Mix solve_param_gradient and solve_param_linear.
+        """
+        # solve by L-BFGS-B
+        # * linear is more robust than gradient.
+        try:
+            est_param = self.solve_param_gradient(is_constrained)
+        except:
+            # if the alogrithm is nelder-mead and the optimization fails to
+            # converge, use the constrained version
+            #
+            # * solve_param_linear with different params in two times.
+            try:
+                est_param = self.solve_param_linear(is_constrained)
+            except Exception as e:
+                if str(e) == 'Optimizer fails to find solution. Try constrained search.':
+                    est_param = self.solve_param_linear(True)
+                else:
+                    raise e
+        return est_param
 
 
 class irt_factor_optimizer(object):

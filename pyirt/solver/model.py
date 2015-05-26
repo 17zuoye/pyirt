@@ -193,22 +193,7 @@ class IRT_MMLE_2PL(object):
             opt_worker.load_res_data(input_data)
             # if one wishes to inspect the model input, print the input data
 
-            # solve by L-BFGS-B
-            # * linear is more robust than gradient.
-            try:
-                est_param = opt_worker.solve_param_gradient(self.is_constrained)
-            except:
-                # if the alogrithm is nelder-mead and the optimization fails to
-                # converge, use the constrained version
-                #
-                # * solve_param_linear with different params in two times.
-                try:
-                    est_param = opt_worker.solve_param_linear(self.is_constrained)
-                except Exception as e:
-                    if str(e) == 'Optimizer fails to find solution. Try constrained search.':
-                        est_param = opt_worker.solve_param_linear(True)
-                    else:
-                        raise e
+            est_param = opt_worker.solve_param_mix(self.is_constrained)
 
             # update
             self.item_param_dict[eid]['beta'] = est_param[0]

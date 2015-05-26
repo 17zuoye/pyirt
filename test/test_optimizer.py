@@ -65,6 +65,24 @@ class TestItemSolverNoGuess(unittest.TestCase):
         est_param = self.solver.solve_param_gradient(is_constrained=True)
         self.assertTrue(abs(est_param[0] - self.beta) < 0.1 and abs(est_param[1] - self.alpha) < 0.1)
 
+    def test_data_for_solve_param_mix(self):
+        """
+        test data from 17zuoye production.
+        """
+        expected_right_count = np.array([4.05604874e-08, 7.06740321e-06, 6.50532986e-04,
+                                         3.18995908e-01, 1.04895900e+01, 1.25667422e+02,
+                                         4.77649918e+02, 7.60813810e+02, 5.98748095e+02,
+                                         2.85752301e+02, 1.42559210e+02])
+        expected_wrong_count = np.array([5.44930352e-03, 8.43617536e-02, 9.54184900e-01,
+                                         8.00842890e+00, 9.74576266e+01, 7.48633956e+02,
+                                         1.46395898e+03, 1.04005287e+03, 2.71513420e+02,
+                                         3.65580835e+01, 6.77263765e+00])
+        self.solver.set_initial_guess((0.0, 1.0))
+        self.solver.set_bounds([(-4.0, 4.0), (0.25, 2)])
+        self.solver.set_theta(np.linspace(-4, 4, num=11))
+        self.solver.load_res_data([expected_right_count, expected_wrong_count])
+        self.solver.solve_param_mix(is_constrained=True)
+
 
 class TestUserSolver(unittest.TestCase):
 
