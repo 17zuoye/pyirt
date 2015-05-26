@@ -92,7 +92,7 @@ class irt_2PL_Optimizer(object):
                 raise Exception('Optimizer fails to find solution.\
                                 Try constrained search.')
             else:
-                raise Exception('Algorithm failed because ' + res.message)
+                raise Exception('Algorithm failed because: ' + res.message)
 
         return res.x
 
