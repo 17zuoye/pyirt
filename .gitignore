@@ -86,3 +86,6 @@ docs/_build/
 
 *.yml
 *.jar
+
+# compiled by cpython, see it at setup.py
+pyirt/utl/clib.c

@@ -1,5 +1,8 @@
-import tools
-import loader
+__all__ = ["tools", "loader", "clib"]
+
+from . import tools
+from . import loader
+
 import pyximport
 pyximport.install()
-import clib
+from . import clib

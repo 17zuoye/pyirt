@@ -1,4 +1,5 @@
 from setuptools import setup
+from Cython.Build import cythonize
 
 setup(
     name='pyirt',
@@ -19,7 +20,10 @@ setup(
     install_requires=['numpy',
                       'scipy',
                       'cython', ],
+
     package_data={'pyirt': ["*.pyx"]},
+    ext_modules=cythonize('pyirt/utl/clib.pyx'),
+
     classifiers=[
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
