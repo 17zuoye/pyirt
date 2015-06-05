@@ -1,5 +1,5 @@
 from setuptools import setup
-from Cython.Build import cythonize
+# from Cython.Build import cythonize
 
 setup(
     name='pyirt',
@@ -22,7 +22,7 @@ setup(
                       'cython', ],
 
     package_data={'pyirt': ["*.pyx"]},
-    ext_modules=cythonize('pyirt/utl/clib.pyx'),
+    # ext_modules=cythonize('pyirt/utl/clib.pyx'),
 
     classifiers=[
         'Intended Audience :: Developers',
