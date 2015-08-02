@@ -13,7 +13,6 @@ import time
 
 from ..utl import clib, tools, loader
 from ..solver import optimizer
-# import cython
 
 
 class IRT_MMLE_2PL(object):

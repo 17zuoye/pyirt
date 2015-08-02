@@ -12,11 +12,15 @@ import time
 import os
 import subprocess
 
+'''
 # bsddb3 is hard to install
 #
 # example to install bsddb3 on OSX
 # brew install Berkeley-db
-# YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=TRUE BERKELEYDB_DIR=/usr/local/Cellar/berkeley-db/6.1.19 pip install bsddb3
+# YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=TRUE 
+# BERKELEYDB_DIR=/usr/local/Cellar/berkeley-db/6.1.19 
+# pip install bsddb3
+
 try:
     import bsddb as diskdb
 except:
@@ -28,6 +32,7 @@ except:
 # Compact with bsddb3
 if hasattr(diskdb, "hashopen"):
     diskdb.open = diskdb.hashopen
+'''
 
 import collections as cos
 
@@ -224,7 +229,7 @@ class data_storage(object):
 
             self.item2user['%d' % eid] += '%d,%d;' % (uid, atag)
             self.user2item['%d' % uid] += '%d,%d;' % (eid, atag)
-
+    '''
     def _init_right_wrong_map_bdm(self):
         os.system("rm -f %" % self.tmp_dir + '/right_map.db')
         os.system("rm -f %" % self.tmp_dir + '/wrong_map.db')
@@ -248,6 +253,7 @@ class data_storage(object):
                         self.wrong_map[eidstr] = '%d' % uid_idx
                     else:
                         self.wrong_map[eidstr] += ',%d' % uid_idx
+    '''
 
     def _init_right_wrong_map_memory(self):
         self.right_map = cos.defaultdict(list)

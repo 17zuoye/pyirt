@@ -39,18 +39,6 @@ when try to calibrate item parameters for online testing bank, such assumption
 breaks down and the algorithm runs into sparse data problem, as well as severe
 missing data problem.
 
-## "Big" Data
-EM algorithm requires two essential dictionaries for analysis routine. One maps
-item to user and the other maps user to item. Python dictionary is not memory
-efficient so pyirt uses hard disk dbm instead. The limit of data size is
-about 1/4 of the hard drive size. I doubt any dataset will be that large.
-
-The performance will suffer greatly by using the dbm. For a 10 million record
-dataset, the loading time increases by about 5 times and the computation time
-increase by about 3 times. Putting the temp folder in memory does not reduces
-the time by 10%.
-
-User be aware when invoke the 'dbm' mode.
 
 ## Missing Data
 
@@ -142,6 +130,11 @@ VII.ToDos
 
 (3) The solver cannot handle group constraints.
 
+
+## BIG DATA
+bdm is a work around when the data are too much for memory. However,berkeley db
+is quite hard to install on operating system. Therefore, although in utl module
+there are code snips for dbm trick. It is not standard shipping.
 
 
 
