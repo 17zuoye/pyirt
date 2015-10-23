@@ -277,13 +277,8 @@ class data_storage(object):
         self.num_item = len(self.eid_vec)
 
         # build a dictionary for fast uid index, which is used in map
-        self.uidx = cos.defaultdict(int)
-        for i in xrange(self.num_user):
-            self.uidx[self.uid_vec[i]] = i
-
-        self.eidx = cos.defaultdict(int)
-        for j in xrange(self.num_item):
-            self.eidx[self.eid_vec[j]] = j
+        self.uidx = dict(zip(int(self.uid_vec), range(len(self.uid_vec)))) # maybe range->xrange? not so sure about python2, this is doable in python3
+        self.eidx = dict(zip(int(self.eid_vec), range(len(self.eid_vec))))
 
     def get_log(self, uid):
         if self.mode == 'bdm':

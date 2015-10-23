@@ -19,7 +19,7 @@ def irt_fnc(theta, beta, alpha=1.0, c=0.0):
 
 def log_likelihood_factor_gradient(y1, y0, theta, alpha, beta, c=0.0):
     temp = np.exp(beta + alpha * theta)
-    grad = alpha / (1.0 + temp) * (y1 * ((1.0 - c) / (c / temp + 1.0)) - y0 * temp)
+    grad = alpha * temp / (1.0 + temp) * (y1 * (1.0 - c) / (c + temp ) - y0 )
 
     return grad
 
