@@ -12,8 +12,8 @@ def log_likelihood_2PL(double y1,
     cdef extern from "math.h":
         double exp(double x)
         double log(double x)
-    expComp = exp(-(alpha*theta + beta));
-    ell =  y1*log(c+(1.0-c)/(1.0+expComp)) + y0*log((1.0-c)*expComp/(1.0+expComp)) ;
+    expPos = exp(alpha*theta + beta) ;
+    ell =  y1*log((c+expPos)/(1.0+expPos)) + y0*log((1.0-c)/(1.0+expPos)) ;
 
     return ell
 
@@ -32,8 +32,7 @@ def log_likelihood_2PL_gradient(double y1,
     grad = np.zeros(2)
 
     temp = exp(beta + alpha * theta)
-    beta_grad = 1.0/(1.0+temp) *( y1*( (1.0-c)/(c/temp+1.0))-
-                                  y0*temp)
+    beta_grad = temp /(1.0+temp) *( y1*(1.0-c)/(c+temp)- y0)
 
     #beta_grad = -(-y1+y0*temp)/(1+temp)
     alpha_grad = theta*beta_grad
