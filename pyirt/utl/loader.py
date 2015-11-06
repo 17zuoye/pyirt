@@ -66,7 +66,7 @@ def from_matrix_to_list(indata_file, sep=',', header=False, is_uid=False):
                     num_item = len(segs)
 
             # parse
-            for j in range(num_item):
+            for j in xrange(num_item):
                 if is_uid:
                     idx = j + 1
                 else:
@@ -277,8 +277,8 @@ class data_storage(object):
         self.num_item = len(self.eid_vec)
 
         # build a dictionary for fast uid index, which is used in map
-        self.uidx = dict(zip(int(self.uid_vec), range(len(self.uid_vec)))) # maybe range->xrange? not so sure about python2, this is doable in python3
-        self.eidx = dict(zip(int(self.eid_vec), range(len(self.eid_vec))))
+        self.uidx = dict(zip(self.uid_vec, xrange(len(self.uid_vec))))
+        self.eidx = dict(zip(self.eid_vec, xrange(len(self.eid_vec))))
 
     def get_log(self, uid):
         if self.mode == 'bdm':
