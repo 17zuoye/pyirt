@@ -52,3 +52,8 @@ class TestBayesianEstimator(unittest.TestCase):
 
         self.assertTrue(abs(theta_hat_bad - 3.69) < 1e-2)
         self.assertTrue(abs(theta_hat_good + 4.0) < 1e-2)
+
+
+
+if __name__ == '__main__':
+    unittest.main()
