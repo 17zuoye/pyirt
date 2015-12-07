@@ -12,8 +12,84 @@ from pyirt.solver import optimizer
 
 from pyirt.utl import tools
 import numpy as np
+import json
 
 
+
+class TestMirtTest(unittest.TestCase):
+    def setUp(self):
+        # tmp in the parent dir
+        self.pl2_cat3_data = json.load(open(RootDir + '/data/pl2_cat3_data.json')) 
+        self.pl2_cat2_data = json.load(open(RootDir + '/data/pl2_cat2_data.json'))
+
+        self.epsilon = 1e-8
+    
+    def test_param_2pl_cat3(self):
+        data = self.pl2_cat3_data
+        Ys = [pair[0] for pair in data['Y']]
+        Xs = [[1.0, data['theta'][pair[1]]] for pair in data['Y']]
+
+        tester = optimizer.Mirt_Optimizer()
+        tester.load_res_data(Ys,Xs)
+        naive_x0 = np.array([[0.0,0.0],[1.0,1.0]])
+        est_param = tester.solve_param(naive_x0)
+        true_params = np.array([[2.0,1.0],[1.0,2.0]])
+
+        self.assertTrue(np.allclose(est_param,true_params,atol=0.05))
+
+    def test_param_2pl_cat2(self):
+        data = self.pl2_cat2_data
+        Ys = [pair[0] for pair in data['Y']]
+        Xs = [[1.0, data['theta'][pair[1]]] for pair in data['Y']]
+
+        tester = optimizer.Mirt_Optimizer()
+        tester.load_res_data(Ys,Xs)
+        naive_x0 = np.array([[0.0],[1.0]])
+        est_param = tester.solve_param(naive_x0) 
+        true_params = np.array([[-1.0],[1.5]])
+
+        self.assertTrue(np.allclose(est_param,true_params,atol=0.05))
+
+
+    def test_score(self):
+        # generate data
+        wendog = np.array([[0,1]])
+        exog = np.array([[0.0, 1.0],[1.0,0.0]])
+        K = 2
+        params = np.array([[-0.5], [1.0]])
+        params_a = np.array([[-0.5], [1.0+self.epsilon]])
+        params_b = np.array([[-0.5+self.epsilon], [1.0]])
+
+        
+        tester = optimizer.Mirt_Optimizer()
+
+        grad_a = (tester._loglikelihood(params_a, wendog, exog,K) -tester._loglikelihood(params, wendog, exog,K))/self.epsilon
+        grad_b = (tester._loglikelihood(params_b, wendog, exog,K) -tester._loglikelihood(params, wendog, exog,K))/self.epsilon
+        grad = tester._score(params, wendog, exog, K)
+
+        self.assertTrue(np.allclose(grad,np.array([grad_b,grad_a])))
+
+    def test_hessian(self):
+
+        wendog = np.array([[0,1]])
+        exog = np.array([[0.0, 1.0],[1.0,0.0]])
+        K = 2
+        params = np.array([[-0.5], [1.0]])
+        params_a = np.array([[-0.5], [1.0+self.epsilon]])
+        params_b = np.array([[-0.5+self.epsilon], [1.0]])
+        
+        
+        tester = optimizer.Mirt_Optimizer()
+        hessian_a = (tester._score(params_a, wendog, exog,K) -tester._score(params, wendog, exog,K))/self.epsilon
+        hessian_b = (tester._score(params_b, wendog, exog,K) -tester._score(params, wendog, exog,K))/self.epsilon
+
+        hessian = tester._hessian(params, wendog, exog, K)
+
+        self.assertTrue(np.allclose(hessian[0,:],hessian_b))
+        self.assertTrue(np.allclose(hessian[1,:],hessian_a))
+
+
+"""
 class TestItemSolverNoGuess(unittest.TestCase):
 
     def setUp(self):
@@ -66,9 +142,6 @@ class TestItemSolverNoGuess(unittest.TestCase):
         self.assertTrue(abs(est_param[0] - self.beta) < 0.1 and abs(est_param[1] - self.alpha) < 0.1)
 
     def test_data_for_solve_param_mix(self):
-        """
-        test data from 17zuoye production.
-        """
         expected_right_count = np.array([4.05604874e-08, 7.06740321e-06, 6.50532986e-04,
                                          3.18995908e-01, 1.04895900e+01, 1.25667422e+02,
                                          4.77649918e+02, 7.60813810e+02, 5.98748095e+02,
@@ -137,7 +210,7 @@ class TestUserSolver(unittest.TestCase):
         self.solver.set_bounds((-6, 6))
         est_param = self.solver.solve_param_scalar()
         self.assertTrue(abs(est_param - self.theta) < 0.2)  # orig is 0.1
-
+"""
 
 if __name__ == '__main__':
     unittest.main()

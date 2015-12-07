@@ -69,12 +69,8 @@ if __name__ == '__main__':
     Did not converge, because without sufficient Y combinations, cannot pin down posterior very well
     # time to add to the main function
     '''
-    As_true = [1.0, 1.0]
-    Bs_true = [2.0, -1.0]
-    #ys = [simulate_response(0.0,1.0,[0.0,1.0]) for x in range(1000)]
-    #res = Counter(ys)
-    #print(get_grade_prob(0.0,1.0,[0.0,1.0]))
-    data, thetas = get_simulate_sample(As_true, Bs_true, N=1000)
+
+
     num_obs = len(data)
 
     data_repo = {}
