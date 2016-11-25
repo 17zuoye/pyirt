@@ -6,7 +6,6 @@ RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RootDir)
 
 from pyirt._pyirt import irt
-irt
 
 """
 
@@ -17,10 +16,11 @@ src_handle = open('data/sim_data_simple.txt','r')
 print('Load file handle.')
 item_param,user_param = irt(src_handle)
 src_handle.close()
+"""
 
 # load tuples
 print('Load tuple data.')
-src_handle = open('data/sim_data_simple.txt','r')
+src_handle = open(RootDir+'/data/single_param_data.txt','r')
 src_data = []
 for line in src_handle:
     if line == '':
@@ -30,14 +30,4 @@ for line in src_handle:
 src_handle.close()
 
 item_param,user_param = irt(src_data)
-
-# mount the damn tmp folder into memory
-print('Use bdm')
-item_param,user_param = irt(src_data, mode = 'bdm')
-
-print('Use bdm by RAM disk')
-item_param,user_param = irt(src_data, mode = 'bdm',is_mount=True, user_name="junchen")
-
-
-# utl.loader.parse_item_paramer(item_param, output_file = 'data/sim_est.txt')
-"""
+print(item_param)

@@ -11,6 +11,8 @@ import numpy as np
 import time
 import os
 import subprocess
+from six import string_types
+
 
 '''
 # bsddb3 is hard to install
@@ -66,7 +68,7 @@ def from_matrix_to_list(indata_file, sep=',', header=False, is_uid=False):
                     num_item = len(segs)
 
             # parse
-            for j in xrange(num_item):
+            for j in range(num_item):
                 if is_uid:
                     idx = j + 1
                 else:
@@ -104,7 +106,7 @@ def load_dbm(dmb_val):
     pairs = dmb_val.split(';')
     log_list = []
     # last element is empty
-    for i in xrange(len(pairs) - 1):
+    for i in range(len(pairs) - 1):
         idstr, flagstr = pairs[i].split(',')
         log_list.append((int(idstr), int(flagstr)))
     return log_list
@@ -123,7 +125,7 @@ def parse_item_paramer(item_param_dict, output_file=None):
         alpha_val = np.round(param['alpha'], decimals=2)
         beta_val = np.round(param['beta'], decimals=2)
         if output_file is None:
-            print eid, alpha_val, beta_val
+            print(eid, alpha_val, beta_val)
         else:
             out_fh.write('{},{},{}\n'.format(eid, alpha_val, beta_val))
 
@@ -188,7 +190,7 @@ class data_storage(object):
         self.item2user = cos.defaultdict(list)
         self.user2item = cos.defaultdict(list)
 
-        for i in xrange(self.num_log):
+        for i in range(self.num_log):
             eid = eids[i]
             uid = uids[i]
             atag = atags[i]
@@ -217,7 +219,7 @@ class data_storage(object):
         self.user2item = diskdb.open(self.tmp_dir + '/user2item.db', 'c')
         self.num_log = len(uids)
 
-        for i in xrange(self.num_log):
+        for i in range(self.num_log):
             eid = eids[i]
             uid = uids[i]
             atag = atags[i]
@@ -236,7 +238,7 @@ class data_storage(object):
         self.right_map = diskdb.open(self.tmp_dir + '/right_map.db', 'c')
         self.wrong_map = diskdb.open(self.tmp_dir + '/wrong_map.db', 'c')
 
-        for eidstr, log_val_list in self.item2user.iteritems():
+        for eidstr, log_val_list in self.item2user.items():
             log_result = utl.loader.load_dbm(log_val_list)
             for log in log_result:
                 # The E step uses the index of the uid
@@ -259,7 +261,7 @@ class data_storage(object):
         self.right_map = cos.defaultdict(list)
         self.wrong_map = cos.defaultdict(list)
 
-        for eid, log_result in self.item2user.iteritems():
+        for eid, log_result in self.item2user.items():
             for log in log_result:
                 atag = log[1]
                 uid = log[0]
@@ -277,8 +279,8 @@ class data_storage(object):
         self.num_item = len(self.eid_vec)
 
         # build a dictionary for fast uid index, which is used in map
-        self.uidx = dict(zip(self.uid_vec, xrange(len(self.uid_vec))))
-        self.eidx = dict(zip(self.eid_vec, xrange(len(self.eid_vec))))
+        self.uidx = dict(zip(self.uid_vec, range(len(self.uid_vec))))
+        self.eidx = dict(zip(self.eid_vec, range(len(self.eid_vec))))
 
     def get_log(self, uid):
         if self.mode == 'bdm':

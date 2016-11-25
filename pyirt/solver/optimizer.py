@@ -1,6 +1,4 @@
 # -*-coding:utf-8-*-
-
-
 import numpy as np
 from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar

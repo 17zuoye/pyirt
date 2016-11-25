@@ -13,6 +13,8 @@ import time
 
 from ..utl import clib, tools, loader
 from ..solver import optimizer
+import io
+from six import string_types
 
 
 class IRT_MMLE_2PL(object):
@@ -26,7 +28,7 @@ class IRT_MMLE_2PL(object):
 
     def load_data(self, src, is_mount, user_name, tmp_dir='/tmp/pyirt/'):
         # three columns are uid, eid, atag
-        if isinstance(src, file):
+        if isinstance(src, io.IOBase):
             # if the src is file handle
             uids, eids, atags = self._loadFromHandle(src)
         else:
@@ -59,7 +61,7 @@ class IRT_MMLE_2PL(object):
         self._init_solver_param(is_constrained, boundary, solver_type, max_iter, tol)
 
     def load_guess_param(self, in_guess_param):
-        if isinstance(in_guess_param, basestring):
+        if isinstance(in_guess_param, string_types):
             # all c are 0
             guess_param_dict = {}
             for eid in self.data_ref.eid_vec:
@@ -128,7 +130,7 @@ class IRT_MMLE_2PL(object):
 
     def get_user_param(self):
         user_param_dict = {}
-        for i in xrange(self.data_ref.num_user):
+        for i in range(self.data_ref.num_user):
             uid = self.data_ref.uid_vec[i]
             user_param_dict[uid] = self.theta_vec[i]
 
@@ -279,7 +281,7 @@ class IRT_MMLE_2PL(object):
             # find all the items
             likelihood_vec = np.zeros(num_theta)
             # calculate
-            for k in xrange(num_theta):
+            for k in range(num_theta):
                 theta     = theta_prior_val[k]
                 # calculate the likelihood
                 ell       = 0.0
@@ -313,7 +315,7 @@ class IRT_MMLE_2PL(object):
 
         # [A] calculate p(data,param|theta)
         # TODO: speed it up
-        for i in xrange(self.data_ref.num_user):
+        for i in range(self.data_ref.num_user):
             self.posterior_theta_distr[i, :] = update(self.data_ref.get_log(self.data_ref.uid_vec[i]),
                                                       self.num_theta, self.theta_prior_val, self.theta_density,
                                                       self.item_param_dict)
@@ -328,7 +330,7 @@ class IRT_MMLE_2PL(object):
         import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
         posterior_vec = parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user)
 
-        for i in xrange(self.data_ref.num_user):
+        for i in range(self.data_ref.num_user):
             self.posterior_theta_distr[i,:] = np.exp(posterior_vec[i])
         '''
         # When the loop finish, check if the theta_density adds up to unity for each user

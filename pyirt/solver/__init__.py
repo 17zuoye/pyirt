@@ -1,3 +1,3 @@
-import optimizer
-import model
-import theta_estimator
+from .optimizer import *
+from .model import *
+from .theta_estimator import *
