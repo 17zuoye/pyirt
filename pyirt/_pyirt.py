@@ -4,7 +4,8 @@ from .solver import model
 
 def irt(src, theta_bnds=[-4, 4],
         alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param='default',
-        model_spec='2PL'):
+        model_spec='2PL',
+        max_iter=10,tol=1e-3):
 
     if model_spec == '2PL':
         mod = model.IRT_MMLE_2PL()
@@ -12,8 +13,8 @@ def irt(src, theta_bnds=[-4, 4],
         raise Exception('Unknown model specification.')
 
     # load
-    mod.load_data(src, is_mount, user_name)
-    mod.load_param(theta_bnds, alpha_bnds, beta_bnds)
+    mod.load_data(src)
+    mod.load_param(theta_bnds, alpha_bnds, beta_bnds,max_iter, tol)
     mod.load_guess_param(in_guess_param)
 
     # solve

@@ -19,7 +19,8 @@ setup(
     platforms='any',
     install_requires=['numpy',
                       'scipy',
-                      'cython'],
+                      'cython',
+                      'six'],
 
     package_data={'pyirt': ["*.pyx"]},
     # ext_modules=cythonize('pyirt/utl/clib.pyx'),

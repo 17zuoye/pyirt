@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
+RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(RootDir)
 
 import unittest
 from pyirt.utl import tools, clib 

@@ -26,21 +26,27 @@ class IRT_MMLE_2PL(object):
     (3) solve
     '''
 
-    def load_data(self, src, is_mount, user_name, tmp_dir='/tmp/pyirt/'):
-        # three columns are uid, eid, atag
+    def load_data(self, src):
+        # three columns are user_id, item_id, ans_tag
         if isinstance(src, io.IOBase):
             # if the src is file handle
-            uids, eids, atags = self._loadFromHandle(src)
+            user_ids, item_ids, ans_tags = self._loadFromHandle(src)
         else:
             # if the src is list of tuples
-            uids, eids, atags = self._loadFromTuples(src)
+            user_ids, item_ids, ans_tags = self._loadFromTuples(src)
+       
+        #  map the arbitrary inputs to continuous idx which used in later idx
+        user_id_idx_vec, self.user_idx_ref, self.user_reverse_idx_ref = loader.construct_ref_dict(user_ids) 
+        item_id_idx_vec, self.item_idx_ref, self.item_reverse_idx_ref = loader.construct_ref_dict(item_ids)
+        
+        
         # process it
         print('Data loading is complete.')
 
         self.data_ref = loader.data_storage()
-        self.data_ref.setup(uids, eids, atags)
+        self.data_ref.setup(user_id_idx_vec, item_id_idx_vec, ans_tags)
 
-    def load_param(self, theta_bnds, alpha_bnds, beta_bnds):
+    def load_param(self, theta_bnds, alpha_bnds, beta_bnds,max_iter, tol):
         # TODO: allow for a more flexible parameter setting
         # The config object has to be passed in because hdfs file system does
         # not load target file
@@ -55,21 +61,19 @@ class IRT_MMLE_2PL(object):
 
         solver_type = 'gradient'
         is_constrained = True
-        max_iter = 10
-        tol = 1e-3
 
         self._init_solver_param(is_constrained, boundary, solver_type, max_iter, tol)
 
     def load_guess_param(self, in_guess_param):
+        self.guess_param_dict = {}
         if isinstance(in_guess_param, string_types):
             # all c are 0
-            guess_param_dict = {}
-            for eid in self.data_ref.eid_vec:
-                guess_param_dict[eid] = {'c': 0.0}
+            for item_idx in range(self.data_ref.num_item):
+                self.guess_param_dict[item_idx] = {'c': 0.0}
         else:
-            guess_param_dict = in_guess_param
-
-        self.guess_param_dict = guess_param_dict
+            for item_idx in range(self.data_ref.num_item):
+                item_id = self.item_reverse_idx_ref[item_idx]
+                self.guess_param_dict[item_idx] = in_guess_param[item_id]
 
     def solve_EM(self):
         # create the inner parameters
@@ -84,6 +88,12 @@ class IRT_MMLE_2PL(object):
         avg_prob_t0 = 0
 
         while True:
+            # save the iterations from last time
+            if num_iter!=1:
+                last_theta_vec = self.theta_vec
+                last_item_param_dict = self.item_param_dict
+            
+            
             iter_start_time = time.time()
             # add in time block
             start_time = time.time()
@@ -109,7 +119,8 @@ class IRT_MMLE_2PL(object):
 
             # if the algorithm improves, then ell > ell_t0
             if avg_prob_t0 > avg_prob:
-                # TODO: needs to roll back if the likelihood decrease
+                self.theta_vec = last_theta_vec
+                self.item_param_dict = last_item_param_dict
                 print('Likelihood descrease, stops at iteration %d.' % num_iter)
                 break
 
@@ -125,16 +136,18 @@ class IRT_MMLE_2PL(object):
                 break
 
     def get_item_param(self):
-        # need to remap the inner id to the outer id
-        return self.item_param_dict
+        output_item_param = {}
+        for item_idx in range(self.data_ref.num_item):
+            item_id = self.item_reverse_idx_ref[item_idx]
+            output_item_param[item_id] = self.item_param_dict[item_idx]  
+        return output_item_param
 
     def get_user_param(self):
-        user_param_dict = {}
-        for i in range(self.data_ref.num_user):
-            uid = self.data_ref.uid_vec[i]
-            user_param_dict[uid] = self.theta_vec[i]
-
-        return user_param_dict
+        output_user_param = {}
+        for user_idx in range(self.data_ref.num_user):
+            user_id = self.user_reverse_idx_ref[user_idx]
+            output_user_param[user_id] = self.theta_vec[user_idx]
+        return output_user_param
 
     '''
     Main Routine
@@ -177,19 +190,18 @@ class IRT_MMLE_2PL(object):
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
 
-        for eid in self.data_ref.eid_vec:
+        for item_idx in range(self.data_ref.num_item):
             # set the initial guess as a mixture of current value and a new
             # start to avoid trap in local maximum
-            initial_guess_val = (self.item_param_dict[eid]['beta'],
-                                 self.item_param_dict[eid]['alpha'])
+            initial_guess_val = (self.item_param_dict[item_idx]['beta'],
+                                 self.item_param_dict[item_idx]['alpha'])
 
             opt_worker.set_initial_guess(initial_guess_val)
-            opt_worker.set_c(self.item_param_dict[eid]['c'])
+            opt_worker.set_c(self.item_param_dict[item_idx]['c'])
 
             # assemble the expected data
-            j = self.data_ref.eidx[eid]
-            expected_right_count = self.item_expected_right_bytheta[:, j]
-            expected_wrong_count = self.item_expected_wrong_bytheta[:, j]
+            expected_right_count = self.item_expected_right_by_theta[:, item_idx]
+            expected_wrong_count = self.item_expected_wrong_by_theta[:, item_idx]
             input_data = [expected_right_count, expected_wrong_count]
             opt_worker.load_res_data(input_data)
             # if one wishes to inspect the model input, print the input data
@@ -197,13 +209,13 @@ class IRT_MMLE_2PL(object):
             est_param = opt_worker.solve_param_mix(self.is_constrained)
 
             # update
-            self.item_param_dict[eid]['beta'] = est_param[0]
-            self.item_param_dict[eid]['alpha'] = est_param[1]
+            self.item_param_dict[item_idx]['beta'] = est_param[0]
+            self.item_param_dict[item_idx]['alpha'] = est_param[1]
 
         # [B] max for theta density
         # pi = r_k/(w_k+r_k)
-        r_vec = np.sum(self.item_expected_right_bytheta, axis=1)
-        w_vec = np.sum(self.item_expected_wrong_bytheta, axis=1)
+        r_vec = np.sum(self.item_expected_right_by_theta, axis=1)
+        w_vec = np.sum(self.item_expected_wrong_by_theta, axis=1)
         self.theta_density = np.divide(r_vec, r_vec + w_vec)
 
     '''
@@ -211,34 +223,34 @@ class IRT_MMLE_2PL(object):
     '''
 
     def _loadFromTuples(self, data):
-        uids = []
-        eids = []
-        atags = []
+        user_ids = []
+        item_ids = []
+        ans_tags = []
         if len(data) == 0:
             raise Exception('Data is empty.')
 
         for log in data:
-            uids.append(log[0])
-            eids.append(log[1])
-            atags.append(int(log[2]))
+            user_ids.append(log[0])
+            item_ids.append(log[1])
+            ans_tags.append(int(log[2]))
 
-        return uids, eids, atags
+        return user_ids, item_ids, ans_tags
 
     def _loadFromHandle(self, fp, sep=','):
         # Default format is comma separated files,
         # Only int is allowed within the environment
-        uids = []
-        eids = []
-        atags = []
+        user_ids = []
+        item_ids = []
+        ans_tags = []
 
         for line in fp:
             if line == '':
                 continue
-            uidstr, eidstr, atagstr = line.strip().split(sep)
-            uids.append(uidstr)
-            eids.append(eidstr)
-            atags.append(int(atagstr))
-        return uids, eids, atags
+            user_id_str, item_id_str, ans_tagstr = line.strip().split(sep)
+            user_ids.append(user_id_str)
+            item_ids.append(item_id_str)
+            ans_tags.append(int(ans_tagstr))
+        return user_ids, item_ids, ans_tags
 
     def _init_solver_param(self, is_constrained, boundary,
                            solver_type, max_iter, tol):
@@ -255,11 +267,10 @@ class IRT_MMLE_2PL(object):
 
     def _init_item_param(self):
         self.item_param_dict = {}
-        for eid in self.data_ref.eid_vec:
-            # need to call the old eid
-            c = self.guess_param_dict[eid]['c']
-
-            self.item_param_dict[eid] = {'alpha': 1.0, 'beta': 0.0, 'c': c}
+        for item_idx in range(self.data_ref.num_item):
+            # need to call the old item_id
+            c = self.guess_param_dict[item_idx]['c']
+            self.item_param_dict[item_idx] = {'alpha': 1.0, 'beta': 0.0, 'c': c}
 
     def _init_user_param(self, theta_min, theta_max, num_theta):
         self.theta_prior_val = np.linspace(theta_min, theta_max, num=num_theta)
@@ -286,37 +297,31 @@ class IRT_MMLE_2PL(object):
                 # calculate the likelihood
                 ell       = 0.0
                 for log in log_list:
-                    eid   = log[0]
-                    atag  = log[1]
-                    alpha = item_param_dict[eid]['alpha']
-                    beta  = item_param_dict[eid]['beta']
-                    c     = item_param_dict[eid]['c']
-                    ell   += clib.log_likelihood_2PL(atag, 1.0 - atag,
+                    item_idx   = log[0]
+                    ans_tag  = log[1]
+                    alpha = item_param_dict[item_idx]['alpha']
+                    beta  = item_param_dict[item_idx]['beta']
+                    c     = item_param_dict[item_idx]['c']
+                    ell   += clib.log_likelihood_2PL(0.0+ans_tag, 1.0 - ans_tag,
                                                      theta, alpha, beta, c)
 
                 # now update the density
                 likelihood_vec[k] = ell
-            # ell  = p(param|x), full joint = logp(param|x)+log(x)
+            # ell  = log(p(y|theta,param))
+            # full joint|param = log(p(y|theta,param))+log(p(theta))
             log_joint_prob_vec = likelihood_vec + np.log(theta_density)
 
             # calculate the posterior
-            # p(x|param) = exp(logp(param,x) - log(sum p(param,x)))
+            # p(theta|y,param) = exp(logp(y,theta|param) - log(sum p(y,theta|param)))
             marginal = tools.logsum(log_joint_prob_vec)
             posterior = np.exp(log_joint_prob_vec - marginal)
             return posterior
 
-        """
-        def parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user):
-
-            posterior_vec = Parallel(n_jobs = 4) (delayed(update)(logs[i],
-                                        ntheta, theta_prior, theta_density, item_param) for i in range(num_user))
-            return posterior_vec
-        """
 
         # [A] calculate p(data,param|theta)
         # TODO: speed it up
-        for i in range(self.data_ref.num_user):
-            self.posterior_theta_distr[i, :] = update(self.data_ref.get_log(self.data_ref.uid_vec[i]),
+        for user_idx in range(self.data_ref.num_user):
+            self.posterior_theta_distr[user_idx, :] = update(self.data_ref.get_log(user_idx),
                                                       self.num_theta, self.theta_prior_val, self.theta_density,
                                                       self.item_param_dict)
         '''
@@ -326,8 +331,7 @@ class IRT_MMLE_2PL(object):
         theta_density = self.theta_density
         item_param = self.item_param_dict
         num_user = self.data_ref.num_user
-        logs = [self.data_ref.get_log(self.data_ref.uid_vec[i]) for i in range(num_user)]
-        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+        logs = [self.data_ref.get_log(self.data_ref.user_id_vec[i]) for i in range(num_user)]
         posterior_vec = parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user)
 
         for i in range(self.data_ref.num_user):
@@ -340,73 +344,36 @@ class IRT_MMLE_2PL(object):
 
     def __get_expect_count(self):
 
-        self.item_expected_right_bytheta = np.zeros((self.num_theta, self.data_ref.num_item))
-        self.item_expected_wrong_bytheta = np.zeros((self.num_theta, self.data_ref.num_item))
+        self.item_expected_right_by_theta = np.zeros((self.num_theta, self.data_ref.num_item))
+        self.item_expected_wrong_by_theta = np.zeros((self.num_theta, self.data_ref.num_item))
 
-        for j in range(self.data_ref.num_item):
-            eid = self.data_ref.eid_vec[j]
-            # get all the users that done it right
-            # get all the users that done it wrong
-            right_uid_vec, wrong_uid_vec = self.data_ref.get_rwmap(eid)
+        for item_idx in range(self.data_ref.num_item):
+            right_user_idx_vec, wrong_user_idx_vec = self.data_ref.get_rwmap(item_idx)
             # condition on the posterior ability, what is the expected count of
             # students get it right
             # TODO: for readability, should specify the rows and columns
-            self.item_expected_right_bytheta[:, j] = np.sum(self.posterior_theta_distr[right_uid_vec, :], axis=0)
-            self.item_expected_wrong_bytheta[:, j] = np.sum(self.posterior_theta_distr[wrong_uid_vec, :], axis=0)
+            self.item_expected_right_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[right_user_idx_vec, :], axis=0)
+            self.item_expected_wrong_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[wrong_user_idx_vec, :], axis=0)
 
     def __calc_data_likelihood(self):
         # calculate the likelihood for the data set
 
         ell = 0
-        for i in range(self.data_ref.num_user):
-            uid = self.data_ref.uid_vec[i]
-            theta = self.theta_vec[i]
-            # find all the eid
-            logs = self.data_ref.get_log(uid)
+        for user_idx in range(self.data_ref.num_user):
+            theta = self.theta_vec[user_idx]
+            # find all the item_id
+            logs = self.data_ref.get_log(user_idx)
             for log in logs:
-                eid = log[0]
-                atag = log[1]
-                alpha = self.item_param_dict[eid]['alpha']
-                beta = self.item_param_dict[eid]['beta']
-                c = self.item_param_dict[eid]['c']
+                item_idx = log[0]
+                ans_tag = log[1]
+                alpha = self.item_param_dict[item_idx]['alpha']
+                beta = self.item_param_dict[item_idx]['beta']
+                c = self.item_param_dict[item_idx]['c']
 
-                ell += clib.log_likelihood_2PL(atag, 1 - atag,
+                ell += clib.log_likelihood_2PL(0.0+ans_tag, 1.0-ans_tag,
                                                theta, alpha, beta, c)
         return ell
 
     def __calc_theta(self):
         self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
 
-    '''
-    Experimental
-    def update_guess_param(self):
-        # at the end of each repetition, try to update the distribution of c
-
-        #C is only identified at the extreme right tail, which is not possible in the EM environment
-        #Use the average performance of the worst ability
-
-        raise Exception('Currently deprecated!')
-
-        # find the user that are in the bottom 5%
-        cut_threshold = np.percentile(self.theta_vec, 5)
-        bottom_group = [i for i in range(self.data_ref.num_user) if self.theta_vec[i] <= cut_threshold]
-
-        # now loop through all the items
-        for eid in self.data_ref.eid_vec:
-
-            if self.item_param_dict[eid]['update_c']:
-                # find the user group
-                user_group = self.eid2uid_dict[eid]
-                guessers = set(user_group).intersection(bottom_group)
-                num_guesser = len(guessers)
-                if num_guesser>10:
-                    # average them
-                    rw_list = self.right_wrong_map[eid]
-                    right_cnt = 0.0
-                    for uid in guessers:
-                        if uid in rw_list['right']:
-                            right_cnt += 1
-                    # update c
-                    # cap at 0.5
-                    self.item_param_dict[eid]['c'] = min(right_cnt/num_guesser, 0.5)
-    '''
