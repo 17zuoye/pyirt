@@ -26,13 +26,13 @@ before_install:
   - sudo ln -s /run/shm /dev/shm
 # Install packages
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION atlas numpy scipy nose dateutil statsmodels
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy six
   # Coverage packages are on my binstar channel
-  - conda install --yes -c dan_blanchard python-coveralls nose-cov cython
+  - conda install --yes -c cython
   - python setup.py install
 script:
   - nosetests
 
 # Calculate coverage
-after_success:
-  - coveralls --config_file .coveragerc
+#after_success:
+#  - coveralls --config_file .coveragerc
