@@ -2,11 +2,8 @@
 
 import os
 import sys
-RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, RootDir)
-
-
 import unittest
+
 
 from pyirt.solver import theta_estimator
 

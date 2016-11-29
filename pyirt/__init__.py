@@ -1,6 +1,2 @@
-__all__ = ["irt", "model", "solver", "utl"]
+__all__ = ["_pyirt", "solver", "utl"]
 
-from ._pyirt import irt, model
-
-from .solver import *
-from .utl import *

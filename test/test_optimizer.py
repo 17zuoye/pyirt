@@ -2,20 +2,17 @@
 
 import os
 import sys
-RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, RootDir)
-
 
 import unittest
 
 from pyirt.solver import optimizer
-
 from pyirt.utl import tools
 import numpy as np
 import json
 
 
 
+'''
 class TestMirtTest(unittest.TestCase):
     def setUp(self):
         # tmp in the parent dir
@@ -87,9 +84,8 @@ class TestMirtTest(unittest.TestCase):
 
         self.assertTrue(np.allclose(hessian[0,:],hessian_b))
         self.assertTrue(np.allclose(hessian[1,:],hessian_a))
+'''
 
-
-"""
 class TestItemSolverNoGuess(unittest.TestCase):
 
     def setUp(self):
@@ -210,7 +206,6 @@ class TestUserSolver(unittest.TestCase):
         self.solver.set_bounds((-6, 6))
         est_param = self.solver.solve_param_scalar()
         self.assertTrue(abs(est_param - self.theta) < 0.2)  # orig is 0.1
-"""
 
 if __name__ == '__main__':
     unittest.main()

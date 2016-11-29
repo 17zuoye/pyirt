@@ -218,8 +218,8 @@ class IRT_MMLE_2PL(object):
             raise Exception('Data is empty.')
 
         for log in data:
-            uids.append(int(log[0]))
-            eids.append(int(log[1]))
+            uids.append(log[0])
+            eids.append(log[1])
             atags.append(int(log[2]))
 
         return uids, eids, atags
@@ -235,8 +235,8 @@ class IRT_MMLE_2PL(object):
             if line == '':
                 continue
             uidstr, eidstr, atagstr = line.strip().split(sep)
-            uids.append(int(uidstr))
-            eids.append(int(eidstr))
+            uids.append(uidstr)
+            eids.append(eidstr)
             atags.append(int(atagstr))
         return uids, eids, atags
 
