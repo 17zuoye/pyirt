@@ -9,143 +9,97 @@ The current version only deals with unidimension theta
 
 '''
 import numpy as np
+from scipy.stats import norm 
 import time
 
-from ..utl import clib, tools, loader
+from ..util import clib, tools
 from ..solver import optimizer
-import io
+from ..algo import update_theta_distribution
 from six import string_types
 
 
 class IRT_MMLE_2PL(object):
 
     '''
-    Three steps are exposed
-    (1) load data
-    (2) set parameter
-    (3) solve
+    Exposed methods
+    (1) set options
+    (2) solve
+    (3) get esitmated result
     '''
+    def __init__(self, dao_instance, is_msg=False):
+        # interface to data
+        self.dao=dao_instance
+        self.is_msg = is_msg
+        self.num_iter = 1
+        self.ell_list = []
+        self.last_avg_prob = 0
 
-    def load_data(self, src):
-        # three columns are user_id, item_id, ans_tag
-        if isinstance(src, io.IOBase):
-            # if the src is file handle
-            user_ids, item_ids, ans_tags = self._loadFromHandle(src)
-        else:
-            # if the src is list of tuples
-            user_ids, item_ids, ans_tags = self._loadFromTuples(src)
-       
-        #  map the arbitrary inputs to continuous idx which used in later idx
-        user_id_idx_vec, self.user_idx_ref, self.user_reverse_idx_ref = loader.construct_ref_dict(user_ids) 
-        item_id_idx_vec, self.item_idx_ref, self.item_reverse_idx_ref = loader.construct_ref_dict(item_ids)
-        
-        
-        # process it
-        print('Data loading is complete.')
-
-        self.data_ref = loader.data_storage()
-        self.data_ref.setup(user_id_idx_vec, item_id_idx_vec, ans_tags)
-
-    def load_param(self, theta_bnds, alpha_bnds, beta_bnds,max_iter, tol):
-        # TODO: allow for a more flexible parameter setting
-        # The config object has to be passed in because hdfs file system does
-        # not load target file
-
-        # load user item
+    def set_options(self, theta_bnds, alpha_bnds, beta_bnds, max_iter, tol):
+        #  user
         num_theta = 11
         self._init_user_param(theta_bnds[0], theta_bnds[1], num_theta)
-
-        # load the solver
-        boundary = {'alpha': alpha_bnds,
-                    'beta': beta_bnds}
-
+        # item
+        boundary = {'alpha': alpha_bnds, 'beta': beta_bnds}
+        # solver
         solver_type = 'gradient'
         is_constrained = True
 
         self._init_solver_param(is_constrained, boundary, solver_type, max_iter, tol)
 
-    def load_guess_param(self, in_guess_param):
+    def set_guess_param(self, in_guess_param):
         self.guess_param_dict = {}
         if isinstance(in_guess_param, string_types):
-            # all c are 0
-            for item_idx in range(self.data_ref.num_item):
-                self.guess_param_dict[item_idx] = {'c': 0.0}
+            for item_idx in range(self.dao.get_num('item')):
+                self.guess_param_dict[item_idx] = {'c': 0.0}  # default set to 0
         else:
-            for item_idx in range(self.data_ref.num_item):
-                item_id = self.item_reverse_idx_ref[item_idx]
+            for item_idx in range(self.dao.get_num('item')):
+                item_id = self.dao.translate('item', item_idx) 
                 self.guess_param_dict[item_idx] = in_guess_param[item_id]
 
+    
     def solve_EM(self):
-        # create the inner parameters
-        # currently item parameter requires no setup
+        # data dependent initialization
         self._init_item_param()
+        self.posterior_theta_distr = np.zeros((self.dao.get_num('user'), self.num_theta))
 
-        self.posterior_theta_distr = np.zeros((self.data_ref.num_user, self.num_theta))
-
-        # TODO: enable the stopping condition
-        num_iter = 1
-        self.ell_list = []
-        avg_prob_t0 = 0
-
-        while True:
-            # save the iterations from last time
-            if num_iter!=1:
-                last_theta_vec = self.theta_vec
-                last_item_param_dict = self.item_param_dict
-            
-            
+        # main routine
+        while True: 
+            #----- E step -----
             iter_start_time = time.time()
-            # add in time block
             start_time = time.time()
             self._exp_step()
-            print("--- E step: %f secs ---" % np.round((time.time() - start_time)))
-
+            if self.is_msg:
+                print("--- E step: %f secs ---" % np.round((time.time() - start_time)))
+            
+            #----- M step -----
             start_time = time.time()
             self._max_step()
-            print("--- M step: %f secs ---" % np.round((time.time() - start_time)))
+            if self.is_msg:
+                print("--- M step: %f secs ---" % np.round((time.time() - start_time)))
 
-            self.__calc_theta()
+            self.__calc_theta()  # WHAT IS THIS?
+            
 
-            '''
-            Exp
-            '''
-            # self.update_guess_param()
+            # ---- Stop Condition ----
+            start_time = time.time()
+            is_stop = self._check_stop()
+            if self.is_msg:
+                print("--- all: %f secs ---" % np.round((time.time() - iter_start_time)))
 
-            # the goal is to maximize the "average" probability
-            avg_prob = np.exp(self.__calc_data_likelihood() / self.data_ref.num_log)
-            self.ell_list.append(avg_prob)
-            print("--- all: %f secs ---" % np.round((time.time() - iter_start_time)))
-            print(avg_prob)
-
-            # if the algorithm improves, then ell > ell_t0
-            if avg_prob_t0 > avg_prob:
-                self.theta_vec = last_theta_vec
-                self.item_param_dict = last_item_param_dict
-                print('Likelihood descrease, stops at iteration %d.' % num_iter)
+            if is_stop:
                 break
-
-            if avg_prob_t0 < avg_prob and avg_prob - avg_prob_t0 <= self.tol:
-                print('EM converged at iteration %d.' % num_iter)
-                break
-            # update the stop condition
-            avg_prob_t0 = avg_prob
-            num_iter += 1
-
-            if (num_iter > self.max_iter):
-                print('EM does not converge within max iteration')
-                break
-
+    
     def get_item_param(self):
         output_item_param = {}
-        for item_idx in range(self.data_ref.num_item):
-            item_id = self.item_reverse_idx_ref[item_idx]
+        for item_idx in range(self.dao.get_num('item')):
+            item_id = self.dao.translate('item', item_idx)
             output_item_param[item_id] = self.item_param_dict[item_idx]  
         return output_item_param
 
     def get_user_param(self):
         output_user_param = {}
-        for user_idx in range(self.data_ref.num_user):
-            user_id = self.user_reverse_idx_ref[user_idx]
+        for user_idx in range(self.dao.get_num('user')):
+            user_id = self.dao.translate('user', user_idx)
             output_user_param[user_id] = self.theta_vec[user_idx]
         return output_user_param
 
@@ -190,7 +144,7 @@ class IRT_MMLE_2PL(object):
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
 
-        for item_idx in range(self.data_ref.num_item):
+        for item_idx in range(self.dao.get_num('item')):
             # set the initial guess as a mixture of current value and a new
             # start to avoid trap in local maximum
             initial_guess_val = (self.item_param_dict[item_idx]['beta'],
@@ -218,39 +172,39 @@ class IRT_MMLE_2PL(object):
         w_vec = np.sum(self.item_expected_wrong_by_theta, axis=1)
         self.theta_density = np.divide(r_vec, r_vec + w_vec)
 
-    '''
-    Auxuliary function
-    '''
+    def _check_stop(self):
+        '''
+        preserve user and item parameter from last iteration. This is useful in restoring after a declining llk iteration 
+        '''
+        avg_prob = np.exp(self.__calc_data_likelihood() / self.dao.get_num('log'))
+        self.ell_list.append(avg_prob)
+        if self.is_msg: print(avg_prob)
+        
+        if self.last_avg_prob < avg_prob and avg_prob - self.last_avg_prob <= self.tol:
+            print('EM converged at iteration %d.' % self.num_iter)
+            return True
+        
+        # if the algorithm improves, then ell > ell_t0
+        if self.last_avg_prob > avg_prob:
+            self.theta_vec = self.last_theta_vec
+            self.item_param_dict = self.last_item_param_dict
+            print('Likelihood descrease, stops at iteration %d.' % self.num_iter)
+            return True
 
-    def _loadFromTuples(self, data):
-        user_ids = []
-        item_ids = []
-        ans_tags = []
-        if len(data) == 0:
-            raise Exception('Data is empty.')
+        # update the stop condition
+        self.last_avg_prob = avg_prob
+        self.num_iter += 1
 
-        for log in data:
-            user_ids.append(log[0])
-            item_ids.append(log[1])
-            ans_tags.append(int(log[2]))
+        if (self.num_iter > self.max_iter):
+            print('EM does not converge within max iteration')
+            return True
+        
+        if self.num_iter != 1:
+            self.last_theta_vec = self.theta_vec
+            self.last_item_param_dict = self.item_param_dict
+        
+        return False
 
-        return user_ids, item_ids, ans_tags
-
-    def _loadFromHandle(self, fp, sep=','):
-        # Default format is comma separated files,
-        # Only int is allowed within the environment
-        user_ids = []
-        item_ids = []
-        ans_tags = []
-
-        for line in fp:
-            if line == '':
-                continue
-            user_id_str, item_id_str, ans_tagstr = line.strip().split(sep)
-            user_ids.append(user_id_str)
-            item_ids.append(item_id_str)
-            ans_tags.append(int(ans_tagstr))
-        return user_ids, item_ids, ans_tags
 
     def _init_solver_param(self, is_constrained, boundary,
                            solver_type, max_iter, tol):
@@ -267,76 +221,39 @@ class IRT_MMLE_2PL(object):
 
     def _init_item_param(self):
         self.item_param_dict = {}
-        for item_idx in range(self.data_ref.num_item):
+        for item_idx in range(self.dao.get_num('item')):
             # need to call the old item_id
             c = self.guess_param_dict[item_idx]['c']
             self.item_param_dict[item_idx] = {'alpha': 1.0, 'beta': 0.0, 'c': c}
 
-    def _init_user_param(self, theta_min, theta_max, num_theta):
+    def _init_user_param(self, theta_min, theta_max, num_theta, dist='normal'):
+        # generte value
         self.theta_prior_val = np.linspace(theta_min, theta_max, num=num_theta)
+        
         self.num_theta = len(self.theta_prior_val)
         if self.num_theta != num_theta:
-            raise Exception('Theta initialization failed')
-        # store the prior density
-        self.theta_density = np.ones(num_theta) / num_theta
+            raise Exception('wrong number of inintial theta values')
 
+        # use a normal approximation
+        if dist == 'uniform':
+            self.theta_density = np.ones(num_theta) / num_theta
+        elif dist == 'normal':
+            norm_pdf = [norm.pdf(x) for x in self.theta_prior_val]
+            normalizer = sum(norm_pdf)
+            self.theta_density = np.array([x/normalizer for x in norm_pdf])
+        else:
+            raise Exception('invalid theta prior distibution %s' % dist)
+    
     def __update_theta_distr(self):
-
-        def update(log_list, num_theta, theta_prior_val, theta_density, item_param_dict):
-            '''
-            Basic Math. Notice that the distribution is user specific
-                P_t(theta,data_i,param) = p(data_i,param|theta)*p_[t-1](theta)
-                p_t(data_i,param) = sum(p_t(theta,data_i,param)) over theta
-                p_t(theta|data_i,param) = P_t(theta,data_i,param)/p_t(data_i,param)
-            '''
-            # find all the items
-            likelihood_vec = np.zeros(num_theta)
-            # calculate
-            for k in range(num_theta):
-                theta     = theta_prior_val[k]
-                # calculate the likelihood
-                ell       = 0.0
-                for log in log_list:
-                    item_idx   = log[0]
-                    ans_tag  = log[1]
-                    alpha = item_param_dict[item_idx]['alpha']
-                    beta  = item_param_dict[item_idx]['beta']
-                    c     = item_param_dict[item_idx]['c']
-                    ell   += clib.log_likelihood_2PL(0.0+ans_tag, 1.0 - ans_tag,
-                                                     theta, alpha, beta, c)
-
-                # now update the density
-                likelihood_vec[k] = ell
-            # ell  = log(p(y|theta,param))
-            # full joint|param = log(p(y|theta,param))+log(p(theta))
-            log_joint_prob_vec = likelihood_vec + np.log(theta_density)
-
-            # calculate the posterior
-            # p(theta|y,param) = exp(logp(y,theta|param) - log(sum p(y,theta|param)))
-            marginal = tools.logsum(log_joint_prob_vec)
-            posterior = np.exp(log_joint_prob_vec - marginal)
-            return posterior
 
 
         # [A] calculate p(data,param|theta)
         # TODO: speed it up
-        for user_idx in range(self.data_ref.num_user):
-            self.posterior_theta_distr[user_idx, :] = update(self.data_ref.get_log(user_idx),
+        for user_idx in range(self.dao.get_num('user')):
+            self.posterior_theta_distr[user_idx, :] = update_theta_distribution(self.dao.get_log(user_idx),
                                                       self.num_theta, self.theta_prior_val, self.theta_density,
                                                       self.item_param_dict)
-        '''
-        # create temporay variable for the loops
-        ntheta = self.num_theta
-        theta_prior = self.theta_prior_val
-        theta_density = self.theta_density
-        item_param = self.item_param_dict
-        num_user = self.data_ref.num_user
-        logs = [self.data_ref.get_log(self.data_ref.user_id_vec[i]) for i in range(num_user)]
-        posterior_vec = parallel_update(logs, ntheta, theta_prior, theta_density, item_param, num_user)
-
-        for i in range(self.data_ref.num_user):
-            self.posterior_theta_distr[i,:] = np.exp(posterior_vec[i])
-        '''
+        
         # When the loop finish, check if the theta_density adds up to unity for each user
         check_user_distr_marginal = np.sum(self.posterior_theta_distr, axis=1)
         if any(abs(check_user_distr_marginal - 1.0) > 0.0001):
@@ -344,14 +261,12 @@ class IRT_MMLE_2PL(object):
 
     def __get_expect_count(self):
 
-        self.item_expected_right_by_theta = np.zeros((self.num_theta, self.data_ref.num_item))
-        self.item_expected_wrong_by_theta = np.zeros((self.num_theta, self.data_ref.num_item))
+        self.item_expected_right_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
+        self.item_expected_wrong_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
 
-        for item_idx in range(self.data_ref.num_item):
-            right_user_idx_vec, wrong_user_idx_vec = self.data_ref.get_rwmap(item_idx)
-            # condition on the posterior ability, what is the expected count of
-            # students get it right
-            # TODO: for readability, should specify the rows and columns
+        for item_idx in range(self.dao.get_num('item')):
+            right_user_idx_vec = self.dao.get_right_map(item_idx)
+            wrong_user_idx_vec = self.dao.get_wrong_map(item_idx)
             self.item_expected_right_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[right_user_idx_vec, :], axis=0)
             self.item_expected_wrong_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[wrong_user_idx_vec, :], axis=0)
 
@@ -359,19 +274,17 @@ class IRT_MMLE_2PL(object):
         # calculate the likelihood for the data set
 
         ell = 0
-        for user_idx in range(self.data_ref.num_user):
+        for user_idx in range(self.dao.get_num('user')):
             theta = self.theta_vec[user_idx]
             # find all the item_id
-            logs = self.data_ref.get_log(user_idx)
+            logs = self.dao.get_log(user_idx)
             for log in logs:
                 item_idx = log[0]
                 ans_tag = log[1]
                 alpha = self.item_param_dict[item_idx]['alpha']
                 beta = self.item_param_dict[item_idx]['beta']
                 c = self.item_param_dict[item_idx]['c']
-
-                ell += clib.log_likelihood_2PL(0.0+ans_tag, 1.0-ans_tag,
-                                               theta, alpha, beta, c)
+                ell += clib.log_likelihood_2PL(0.0+ans_tag, 1.0-ans_tag, theta, alpha, beta, c) 
         return ell
 
     def __calc_theta(self):

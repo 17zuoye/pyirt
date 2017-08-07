@@ -1,13 +1,9 @@
 # -*- coding:utf-8 -*-
-
-'''
-Created on 2015/1/2
-
-@author: junchen
-'''
-
 import numpy as np
 
+
+import os
+import sys
 
 def irt_fnc(theta, beta, alpha=1.0, c=0.0):
     # beta is item difficulty

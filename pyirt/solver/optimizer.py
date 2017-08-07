@@ -3,7 +3,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar
 
-from ..utl import clib, tools
+from ..util import clib, tools
 
 # TODO: The BFGS method is not as precise as the NM method
 # TODO: There maybe overflowing issue in data
@@ -11,76 +11,6 @@ from ..utl import clib, tools
 np.seterr(over='raise')
 
 
-#####################################################################
-# new multi-purpose solver
-class Mirt_Optimizer(object):
-    def load_res_data(self, Ys, Xs, J=None, K=None):
-        # Ys are N*1, Xs are N*K
-        # Ys and Xs are lists
-        N = len(Ys)
-        if len(Xs) != N:
-            raise ValueError('Xs and Ys are not equal length')
-        if not J:
-            J = len(set(Ys))
-        if not K:
-            K = len(Xs[0])
-
-        self.exog = np.array(Xs)
-        self.K = K
-        self.J = J
-        
-        # transfrom into wendog
-        self.wendog = np.zeros((N,J))
-        for i in range(N):
-            self.wendog[i,Ys[i]] = 1
-
-    def solve_param(self, x0):
-        target_fnc = lambda params: -self._loglikelihood(params, self.wendog, self.exog, self.K)
-        res = minimize(target_fnc,
-                x0, method='Newton-CG',
-                jac = lambda params: -self._score(params, self.wendog, self.exog, self.K),
-                hess = lambda params: -self._hessian(params, self.wendog, self.exog, self.K)
-                )
-        new_params = res.x.reshape(self.K, self.J-1, order='F')
-        return new_params
-
-    def _cdf(self, X):
-        # X has to be a list or numpy array
-        eXb = np.column_stack((np.ones(len(X)),np.exp(X)))
-        return eXb/eXb.sum(1)[:,None]
-
-    def _loglikelihood(self, params, wendog,exog,K):
-        params = params.reshape(K,-1,order='F')
-        logprob = np.log(self._cdf(np.dot(exog,params)))
-        return np.sum(wendog*logprob)
-
-    # TODO: bugs: cannot handle single X wihtout constant
-    def _score(self,params, wendog, exog, K):
-        params = params.reshape(K,-1,order='F')
-        first_term = wendog[:,1:] - self._cdf(np.dot(exog,params))[:,1:]
-        g =  np.dot(first_term.T, exog).flatten()
-        return g
-
-    def _hessian(self,params, wendog, exog, K):
-        params = params.reshape(K,-1,order='F')
-        pr = self._cdf(np.dot(exog,params))
-        partials = []
-        J = wendog.shape[1] - 1  # first defaults to be 1
-        K = exog.shape[1]
-        for i in range(J):
-            for j in range(J):
-                partials.append( -np.dot( ( (pr[:,i+1]*(int(i==j)-pr[:,j+1]))[:,None]*exog).T, exog ) )
-        H = np.array(partials)
-        H = np.transpose(H.reshape(J,J,K,K),(0,2,1,3)).reshape(J*K,J*K)
-        return H
-
-    
-
-
-
-
-#####################################################################
-# old solvers
 
 class irt_2PL_Optimizer(object):
 
@@ -147,10 +77,10 @@ class irt_2PL_Optimizer(object):
 
         if is_constrained:
             res = minimize(target_fnc, self.x0, method='SLSQP',
-                           bounds=self.bnds, options={'disp': False})
+                    bounds=self.bnds, options={'disp': False})
         else:
             res = minimize(target_fnc, self.x0, method='nelder-mead',
-                           options={'xtol': 1e-3, 'disp': False})
+                           options={'disp': False})
 
         # deal with expcetions
         if not res.success:
@@ -290,7 +220,7 @@ class irt_factor_optimizer(object):
                            bounds=self.bnds, options={'disp': False})
         else:
             res = minimize(target_fnc, self.x0, method='nelder-mead',
-                           options={'xtol': 1e-4, 'disp': False})
+                           options={'disp': False})
 
         # deal with expcetions
         if not res.success:
@@ -336,7 +266,7 @@ class irt_factor_optimizer(object):
 
         res = minimize(target_fnc, self.x0, method='Newton-CG',
                        jac=target_der, hess=target_hess,
-                       options={'xtol': 1e-8, 'disp': False})
+                       options={'disp': False})
         if not res.success:
             if res.message == 'Desired error not necessarily achieved due to precision loss.':
                 # TODO:still returns a result. Something is wrong with the BFGS

@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import beta
 
 
-from ..utl import clib, tools
+from ..util import clib, tools
 
 from ..solver import optimizer
 
