@@ -12,11 +12,11 @@ import numpy as np
 from scipy.stats import norm 
 import time
 from copy import deepcopy
+from six import string_types
 
 from ..util import clib, tools
 from ..solver import optimizer
 from ..algo import update_theta_distribution
-from six import string_types
 
 
 class IRT_MMLE_2PL(object):

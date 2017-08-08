@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-from util import clib, tools
+from .util import clib, tools
 import numpy as np
 
 def update_theta_distribution(data, num_theta, theta_prior_val, theta_density, item_param_dict):

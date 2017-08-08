@@ -1,10 +1,10 @@
 # -*- encoding:utf-8 -*-
-from util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
 import io
 import time
 from six import string_types
 from collections import defaultdict
 
+from .util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
 
 #TODO: bitmap is a function of DAO. Seperate that with database
 

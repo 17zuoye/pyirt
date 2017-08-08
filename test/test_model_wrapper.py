@@ -39,6 +39,7 @@ class Test2PLSolver(unittest.TestCase):
         item_param, user_param = irt(self.data, theta_bnds=[-theta_range/2,theta_range/2], num_theta=11, alpha_bnds=[0.25,3], beta_bnds=[-3,3], tol=1e-5, max_iter=30)
         for t in range(T):
             item_id = item_ids[t]
+            print(item_id, item_param[item_id])
             mdl_alpha = item_param[item_id]['alpha'] 
             mdl_beta = item_param[item_id]['beta'] 
             if item_id != 'h':
@@ -63,7 +64,7 @@ class Test3PLSolver(unittest.TestCase):
 
         for t in range(T):
             item_id = item_ids[t]
-            #print(item_id, item_param[item_id])
+            print(item_id, item_param[item_id])
             mdl_alpha = item_param[item_id]['alpha'] 
             mdl_beta = item_param[item_id]['beta'] 
             if item_id not in ['h','i']:

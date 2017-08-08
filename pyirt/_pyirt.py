@@ -1,6 +1,6 @@
 # -*-coding:utf-8-*-
 from .solver import model
-from dao import localDAO
+from .dao import localDAO
 
 def irt(data_src,
         theta_bnds=[-4, 4], num_theta=11,

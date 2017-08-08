@@ -1,10 +1,6 @@
 # -*- coding:utf-8 -*-
 import numpy as np
 
-
-import os
-import sys
-
 def irt_fnc(theta, beta, alpha=1.0, c=0.0):
     # beta is item difficulty
     # theta is respondent capability

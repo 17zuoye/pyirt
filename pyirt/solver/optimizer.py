@@ -5,9 +5,6 @@ from scipy.optimize import minimize_scalar
 
 from ..util import clib, tools
 
-# TODO: The BFGS method is not as precise as the NM method
-# TODO: There maybe overflowing issue in data
-# TODO: Enable the calibration for two parameter estimation
 np.seterr(over='raise')
 
 

@@ -10,7 +10,7 @@ pyirt
 A python library of IRT algorithm designed to cope with sparse data structure.
 
 - Current version is in early development stage. Use at your own peril.
-- built and test under py3.3. py2.7 compatibility is tested in my own
+- built and test under py2.7. py3.3 compatibility is tested in my own
   environment. 
 
 
