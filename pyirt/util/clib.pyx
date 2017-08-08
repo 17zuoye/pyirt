@@ -24,7 +24,6 @@ def log_likelihood_2PL_gradient(double y1,
                                 double alpha,
                                 double beta,
                                 double c=0.0):
-    #TODO: could be organized into matrix
     # It is the gradient of the log likelihood, not the NEGATIVE log likelihood
     cdef extern from "math.h":
         double exp(double x)

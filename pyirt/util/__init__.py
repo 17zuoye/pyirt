@@ -1,7 +1,7 @@
-__all__ = ["tools", "loader", "clib"]
+__all__ = ["tools", "dao", "clib"]
 
 from . import tools
-from . import loader
+from . import dao
 
 import pyximport
 pyximport.install(build_dir="/tmp/pyximport/", build_in_temp=True)
