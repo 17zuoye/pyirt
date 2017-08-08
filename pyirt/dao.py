@@ -6,7 +6,68 @@ from collections import defaultdict
 
 from .util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
 
-#TODO: bitmap is a function of DAO. Seperate that with database
+import pymongo
+
+class mongoDAO(object): 
+    def __init__(self, connect_config, num_log, group_id=1):
+        user_name = connect_config['user']
+        password = connect_config['password']
+        address = connect_config['address']  # IP:PORT
+        db_name = connect_config['db']
+        if 'authsource' not in connect_config:
+            mongouri = 'mongodb://{un}:{pw}@{addr}'.format(un=user_name, pw=password, addr=address)
+        else:
+            authsource = connect_config['authsource']
+            mongouri = 'mongodb://{un}:{pw}@{addr}/?authsource={auth_src}'.format(un=user_name, pw=password, addr=address, auth_src=authsource)
+        try:
+            self.client = pymongo.MongoClient(mongouri, serverSelectionTimeoutMS=10)
+        except:
+            raise 
+        
+        user2item_collection_name = 'irt_user2item'
+        item2user_collection_name = 'irt_item2user'
+        
+        self.user2item = self.client[db_name][user2item_collection_name]
+        self.item2user = self.client[db_name][item2user_collection_name]
+        
+        # TODO:不能做全量扫描
+        user_ids =  self.user2item.find().distinct('id')
+        item_ids =  self.item2user.find().distinct('id')
+        
+        _, self.user_idx_ref, self.user_reverse_idx_ref = construct_ref_dict(user_ids) 
+        _, self.item_idx_ref, self.item_reverse_idx_ref = construct_ref_dict(item_ids)
+        
+        self.stat = {'log':num_log, 'user':len(self.user_idx_ref.keys()), 'item':len(self.item_idx_ref.keys())}
+
+    def get_num(self, name):
+        if name not in ['user','item','log']:
+            raise Exception('Unknown stat source %s'%name)
+        return self.stat[name]
+
+    def get_log(self, user_idx):
+        user_id = self.translate('user', user_idx)
+        res = self.user2item.find({'id':user_id})
+        log_list = res[0]['data']
+        return [(self.item_idx_ref[x[0]], x[1]) for x in log_list]
+
+    def get_right_map(self, item_idx):
+        item_id = self.translate('item', item_idx) 
+        res = self.item2user.find({'id':item_id})
+        return [self.user_idx_ref[x] for x in res[0]['data']['1']]
+
+    def get_wrong_map(self, item_idx):
+        item_id = self.translate('item', item_idx) 
+        res = self.item2user.find({'id':item_id})
+        return [self.user_idx_ref[x] for x in res[0]['data']['0']]
+
+    def translate(self, data_type, idx):
+        if data_type == 'item':
+            return self.item_reverse_idx_ref[idx]
+        elif data_type == 'user':
+            return self.user_reverse_idx_ref[idx]
+    
+    def __del__(self):
+        self.client.close()
 
 class localDAO(object):
 

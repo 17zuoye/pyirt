@@ -20,7 +20,8 @@ setup(
     install_requires=['numpy',
                       'scipy',
                       'cython',
-                      'six'],
+                      'six',
+                      'pymongo'],
 
     package_data={'pyirt': ["*.pyx"]},
 
