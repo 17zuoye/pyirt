@@ -11,6 +11,7 @@ The current version only deals with unidimension theta
 import numpy as np
 from scipy.stats import norm 
 import time
+from copy import deepcopy
 
 from ..util import clib, tools
 from ..solver import optimizer
@@ -34,9 +35,9 @@ class IRT_MMLE_2PL(object):
         self.ell_list = []
         self.last_avg_prob = 0
 
-    def set_options(self, theta_bnds, alpha_bnds, beta_bnds, max_iter, tol):
+    def set_options(self, theta_bnds, num_theta, alpha_bnds, beta_bnds, max_iter, tol):
         #  user
-        num_theta = 11
+        self.num_theta = num_theta
         self._init_user_param(theta_bnds[0], theta_bnds[1], num_theta)
         # item
         boundary = {'alpha': alpha_bnds, 'beta': beta_bnds}
@@ -60,31 +61,17 @@ class IRT_MMLE_2PL(object):
     def solve_EM(self):
         # data dependent initialization
         self._init_item_param()
-        self.posterior_theta_distr = np.zeros((self.dao.get_num('user'), self.num_theta))
 
         # main routine
         while True: 
             #----- E step -----
-            iter_start_time = time.time()
-            start_time = time.time()
             self._exp_step()
-            if self.is_msg:
-                print("--- E step: %f secs ---" % np.round((time.time() - start_time)))
             
             #----- M step -----
-            start_time = time.time()
             self._max_step()
-            if self.is_msg:
-                print("--- M step: %f secs ---" % np.round((time.time() - start_time)))
-
-            self.__calc_theta()  # WHAT IS THIS?
-            
 
             # ---- Stop Condition ----
-            start_time = time.time()
             is_stop = self._check_stop()
-            if self.is_msg:
-                print("--- all: %f secs ---" % np.round((time.time() - iter_start_time)))
 
             if is_stop:
                 break
@@ -98,9 +85,10 @@ class IRT_MMLE_2PL(object):
 
     def get_user_param(self):
         output_user_param = {}
+        theta_vec = self.__calc_theta()
         for user_idx in range(self.dao.get_num('user')):
             user_id = self.dao.translate('user', user_idx)
-            output_user_param[user_id] = self.theta_vec[user_idx]
+            output_user_param[user_id] = theta_vec[user_idx]
         return output_user_param
 
     '''
@@ -167,11 +155,9 @@ class IRT_MMLE_2PL(object):
             self.item_param_dict[item_idx]['alpha'] = est_param[1]
 
         # [B] max for theta density
-        # pi = r_k/(w_k+r_k)
-        r_vec = np.sum(self.item_expected_right_by_theta, axis=1)
-        w_vec = np.sum(self.item_expected_wrong_by_theta, axis=1)
-        self.theta_density = np.divide(r_vec, r_vec + w_vec)
-
+        self.theta_density = self.posterior_theta_distr.sum(axis=0)/self.posterior_theta_distr.sum()
+        self.__check_theta_density()
+        
     def _check_stop(self):
         '''
         preserve user and item parameter from last iteration. This is useful in restoring after a declining llk iteration 
@@ -179,14 +165,13 @@ class IRT_MMLE_2PL(object):
         avg_prob = np.exp(self.__calc_data_likelihood() / self.dao.get_num('log'))
         self.ell_list.append(avg_prob)
         if self.is_msg: print(avg_prob)
-        
+
         if self.last_avg_prob < avg_prob and avg_prob - self.last_avg_prob <= self.tol:
             print('EM converged at iteration %d.' % self.num_iter)
             return True
         
         # if the algorithm improves, then ell > ell_t0
         if self.last_avg_prob > avg_prob:
-            self.theta_vec = self.last_theta_vec
             self.item_param_dict = self.last_item_param_dict
             print('Likelihood descrease, stops at iteration %d.' % self.num_iter)
             return True
@@ -200,7 +185,6 @@ class IRT_MMLE_2PL(object):
             return True
         
         if self.num_iter != 1:
-            self.last_theta_vec = self.theta_vec
             self.last_item_param_dict = self.item_param_dict
         
         return False
@@ -228,10 +212,8 @@ class IRT_MMLE_2PL(object):
 
     def _init_user_param(self, theta_min, theta_max, num_theta, dist='normal'):
         # generte value
-        self.theta_prior_val = np.linspace(theta_min, theta_max, num=num_theta)
-        
-        self.num_theta = len(self.theta_prior_val)
-        if self.num_theta != num_theta:
+        self.theta_prior_val = np.linspace(theta_min, theta_max, num=num_theta) 
+        if self.num_theta != len(self.theta_prior_val):
             raise Exception('wrong number of inintial theta values')
 
         # use a normal approximation
@@ -243,21 +225,27 @@ class IRT_MMLE_2PL(object):
             self.theta_density = np.array([x/normalizer for x in norm_pdf])
         else:
             raise Exception('invalid theta prior distibution %s' % dist)
-    
+        self.__check_theta_density()
+        # space for each learner 
+        self.posterior_theta_distr = np.zeros((self.dao.get_num('user'), num_theta))
+
     def __update_theta_distr(self):
-
-
         # [A] calculate p(data,param|theta)
-        # TODO: speed it up
         for user_idx in range(self.dao.get_num('user')):
             self.posterior_theta_distr[user_idx, :] = update_theta_distribution(self.dao.get_log(user_idx),
                                                       self.num_theta, self.theta_prior_val, self.theta_density,
                                                       self.item_param_dict)
-        
         # When the loop finish, check if the theta_density adds up to unity for each user
         check_user_distr_marginal = np.sum(self.posterior_theta_distr, axis=1)
         if any(abs(check_user_distr_marginal - 1.0) > 0.0001):
             raise Exception('The posterior distribution of user ability is not proper')
+
+    def __check_theta_density(self):
+        if abs(sum(self.theta_density) - 1)> 1e-6:
+            raise Exception('theta density does not sum upto 1')
+
+        if self.theta_density.shape != (self.num_theta,):
+            raise Exception('theta desnity has wrong shape (%s,%s)'%self.theta_density.shape)
 
     def __get_expect_count(self):
 
@@ -272,10 +260,11 @@ class IRT_MMLE_2PL(object):
 
     def __calc_data_likelihood(self):
         # calculate the likelihood for the data set
-
+        
+        theta_vec  = self.__calc_theta()
         ell = 0
         for user_idx in range(self.dao.get_num('user')):
-            theta = self.theta_vec[user_idx]
+            theta = theta_vec[user_idx]
             # find all the item_id
             logs = self.dao.get_log(user_idx)
             for log in logs:
@@ -288,5 +277,5 @@ class IRT_MMLE_2PL(object):
         return ell
 
     def __calc_theta(self):
-        self.theta_vec = np.dot(self.posterior_theta_distr, self.theta_prior_val)
-
+        return np.dot(self.posterior_theta_distr, self.theta_prior_val)
+    

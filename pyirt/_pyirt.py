@@ -3,7 +3,7 @@ from .solver import model
 from dao import localDAO
 
 def irt(data_src,
-        theta_bnds=[-4, 4],
+        theta_bnds=[-4, 4], num_theta=11,
         alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param='default',
         model_spec='2PL',
         max_iter=10, tol=1e-3, nargout=2):
@@ -18,7 +18,7 @@ def irt(data_src,
         raise Exception('Unknown model specification.')
 
     # specify the irt parameters
-    mod.set_options(theta_bnds, alpha_bnds, beta_bnds,max_iter, tol)
+    mod.set_options(theta_bnds, num_theta, alpha_bnds, beta_bnds,max_iter, tol)
     mod.set_guess_param(in_guess_param)
 
     # solve
