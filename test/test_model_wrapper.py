@@ -21,6 +21,7 @@ theta_range = 4
 guess_param = {}
 for t in range(T):
     guess_param['q%d'%t]={'c':c[t]}
+
 class Test2PLSolver(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -33,9 +34,18 @@ class Test2PLSolver(unittest.TestCase):
                 prob = irt_fnc(thetas[i,0], beta[t], alpha[t])
                 cls.data.append(('u%d'%i, 'q%d'%t, np.random.binomial(1, prob)))
         
-
     def test_2pl_solver(self):
         item_param, user_param = irt(self.data, theta_bnds=[-theta_range/2,theta_range/2], num_theta=11, alpha_bnds=[0.25,3], beta_bnds=[-3,3], tol=1e-5, max_iter=30)
+        for t in range(T):
+            item_id = 'q%d'%t
+            print(item_id, item_param[item_id])
+            mdl_alpha = item_param[item_id]['alpha'] 
+            mdl_beta = item_param[item_id]['beta'] 
+            if item_id != 'q6':
+                self.assertTrue(abs(mdl_alpha - alpha[t])<0.37)
+            self.assertTrue(abs(mdl_beta - beta[t])<0.16)
+    def test_2pl_solver_parallel(self):
+        item_param, user_param = irt(self.data, theta_bnds=[-theta_range/2,theta_range/2], num_theta=11, alpha_bnds=[0.25,3], beta_bnds=[-3,3], tol=1e-5, max_iter=30, is_parallel=True)
         for t in range(T):
             item_id = 'q%d'%t
             print(item_id, item_param[item_id])
@@ -70,6 +80,5 @@ class Test3PLSolver(unittest.TestCase):
                 self.assertTrue(abs(mdl_alpha - alpha[t])<0.25)
             if item_id != 'q8':
                 self.assertTrue(abs(mdl_beta - beta[t])<0.15)
-
 if __name__ == '__main__':
     unittest.main()

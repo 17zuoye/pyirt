@@ -21,7 +21,8 @@ setup(
                       'scipy',
                       'cython',
                       'six',
-                      'pymongo'],
+                      'pymongo',
+                      'tqdm'],
 
     package_data={'pyirt': ["*.pyx"]},
 
