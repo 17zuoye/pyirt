@@ -22,7 +22,7 @@ class mongoDAO(object):
             authsource = connect_config['authsource']
             mongouri = 'mongodb://{un}:{pw}@{addr}/?authsource={auth_src}'.format(un=user_name, pw=password, addr=address, auth_src=authsource)
         try:
-            self.client = pymongo.MongoClient(mongouri, serverSelectionTimeoutMS=10, readPreference='secondaryPreferred')
+            self.client = pymongo.MongoClient(mongouri, connect=False, serverSelectionTimeoutMS=10, readPreference='secondaryPreferred')
         except:
             raise 
         
@@ -45,6 +45,11 @@ class mongoDAO(object):
         print('search idx created.')
         self.gid = group_id
         self.is_msg = is_msg
+        
+        self.close_conn()
+
+    def close_conn(self):
+        self.client.close()
 
     def get_num(self, name):
         if name not in ['user','item']:
@@ -132,7 +137,9 @@ class localDAO(object):
     def get_map(self, item_idx, ans_key_list):
         # NOTE: return empty list for invalid ans key
         return [self.database.item2user_map[str(ans_key)][item_idx] for ans_key in ans_key_list]
-    
+   
+    def close_conn(self):
+        pass
 
     def translate(self, data_type, idx):
         if data_type == 'item':
