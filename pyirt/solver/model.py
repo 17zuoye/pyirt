@@ -33,7 +33,7 @@ class IRT_MMLE_2PL(object):
     (2) solve
     (3) get esitmated result
     '''
-    def __init__(self, dao_instance, is_msg=False, is_parallel=False):
+    def __init__(self, dao_instance, is_msg=False, is_parallel=False, mode='debug'):
         # interface to data
         self.dao=dao_instance
         self.num_iter = 1
@@ -42,6 +42,8 @@ class IRT_MMLE_2PL(object):
 
         self.is_msg = is_msg
         self.is_parallel = is_parallel
+        self.mode = mode
+
     def set_options(self, theta_bnds, num_theta, alpha_bnds, beta_bnds, max_iter, tol):
         #  user
         self.num_theta = num_theta
@@ -56,14 +58,12 @@ class IRT_MMLE_2PL(object):
 
     def set_guess_param(self, in_guess_param):
         self.guess_param_dict = {}
-        if isinstance(in_guess_param, string_types):
-            for item_idx in range(self.dao.get_num('item')):
-                self.guess_param_dict[item_idx] = {'c': 0.0}  # default set to 0
-        else:
-            for item_idx in range(self.dao.get_num('item')):
-                item_id = self.dao.translate('item', item_idx) 
-                self.guess_param_dict[item_idx] = in_guess_param[item_id]
-
+        for item_idx in xrange(self.dao.get_num('item')):
+            item_id = self.dao.translate('item', item_idx) 
+            if item_id in in_guess_param:
+                self.guess_param_dict[item_idx] = {'c': float(in_guess_param[item_id])}
+            else:
+                self.guess_param_dict[item_idx] = {'c':0.0}  # if null then set as 0
     
     def solve_EM(self):
         # data dependent initialization
@@ -100,7 +100,7 @@ class IRT_MMLE_2PL(object):
     
     def get_item_param(self):
         output_item_param = {}
-        for item_idx in range(self.dao.get_num('item')):
+        for item_idx in xrange(self.dao.get_num('item')):
             item_id = self.dao.translate('item', item_idx)
             output_item_param[item_id] = self.item_param_dict[item_idx]  
         return output_item_param
@@ -108,7 +108,7 @@ class IRT_MMLE_2PL(object):
     def get_user_param(self):
         output_user_param = {}
         theta_vec = self.__calc_theta()
-        for user_idx in range(self.dao.get_num('user')):
+        for user_idx in xrange(self.dao.get_num('user')):
             user_id = self.dao.translate('user', user_idx)
             output_user_param[user_id] = theta_vec[user_idx]
         return output_user_param
@@ -169,8 +169,17 @@ class IRT_MMLE_2PL(object):
                     expected_wrong_count = self.item_expected_wrong_by_theta[:, item_idx]
                     input_data = [expected_right_count, expected_wrong_count]
                     opt_worker.load_res_data(input_data)
-                    est_param = opt_worker.solve_param_mix(self.is_constrained)
-                    d[item_idx] = est_param
+                    try:
+                        est_param = opt_worker.solve_param_mix(self.is_constrained)
+                    except Exception as e:
+                        if self.mode=='production':
+                            # In production mode, use the previous iteration
+                            print('Item %d does not fit'%item_idx)
+                            d[item_idx] = self.item_param_dict[item_idx]
+                        else:
+                            raise e
+                    finally:
+                        d[item_idx] = est_param
             
             # [A] calculate p(data,param|theta)
             chunk_list = tools.cut_list(num_item, num_chunk)
@@ -188,7 +197,7 @@ class IRT_MMLE_2PL(object):
             for p in pool:
                 p.join()
         
-            for item_idx in range(num_item):
+            for item_idx in xrange(num_item):
                 self.item_param_dict[item_idx] = {
                         'beta':pool_repo[item_idx][0],
                         'alpha':pool_repo[item_idx][1],
@@ -197,7 +206,7 @@ class IRT_MMLE_2PL(object):
 
 
         else:
-            for item_idx in range(num_item):
+            for item_idx in xrange(num_item):
                 initial_guess_val = (self.item_param_dict[item_idx]['beta'],
                                     self.item_param_dict[item_idx]['alpha'])
                 opt_worker.set_initial_guess(initial_guess_val)  # the value is a mix of 1/0 and current estimate
@@ -210,9 +219,17 @@ class IRT_MMLE_2PL(object):
                 opt_worker.load_res_data(input_data)
                 est_param = opt_worker.solve_param_mix(self.is_constrained)
                 
-                # update
-                self.item_param_dict[item_idx]['beta'] = est_param[0]
-                self.item_param_dict[item_idx]['alpha'] = est_param[1]
+                try:
+                    est_param = opt_worker.solve_param_mix(self.is_constrained)
+                except Exception as e:
+                    if self.mode=='production':
+                        continue
+                    else:
+                        raise e
+                finally:
+                    # update
+                    self.item_param_dict[item_idx]['beta'] = est_param[0]
+                    self.item_param_dict[item_idx]['alpha'] = est_param[1]
 
         # [B] max for theta density
         self.theta_density = self.posterior_theta_distr.sum(axis=0)/self.posterior_theta_distr.sum()
@@ -260,7 +277,7 @@ class IRT_MMLE_2PL(object):
 
     def _init_item_param(self):
         self.item_param_dict = {}
-        for item_idx in range(self.dao.get_num('item')):
+        for item_idx in xrange(self.dao.get_num('item')):
             # need to call the old item_id
             c = self.guess_param_dict[item_idx]['c']
             self.item_param_dict[item_idx] = {'alpha': 1.0, 'beta': 0.0, 'c': c}
@@ -305,10 +322,10 @@ class IRT_MMLE_2PL(object):
                 p.start()
             for p in pool:
                 p.join() 
-            for user_idx in range(num_user):
+            for user_idx in tqdm(xrange(num_user)):
                 self.posterior_theta_distr[user_idx,:] = pool_repo[user_idx]
         else:
-            for user_idx in range(num_user):
+            for user_idx in xrange(num_user):
                 logs = self.dao.get_log(user_idx)
                 self.posterior_theta_distr[user_idx, :] = update_theta_distribution(logs, self.num_theta, self.theta_prior_val, self.theta_density, self.item_param_dict) 
         # When the loop finish, check if the theta_density adds up to unity for each user
@@ -327,7 +344,7 @@ class IRT_MMLE_2PL(object):
         self.item_expected_right_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
         self.item_expected_wrong_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
         num_item = self.dao.get_num('item')
-        for item_idx in range(num_item):
+        for item_idx in tqdm(xrange(num_item)):
             map_user_idx_vec = self.dao.get_map(item_idx, ['1','0'])  # reduce the io time for mongo dao 
             self.item_expected_right_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[map_user_idx_vec[0], :], axis=0)
             self.item_expected_wrong_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[map_user_idx_vec[1], :], axis=0)
@@ -342,7 +359,7 @@ class IRT_MMLE_2PL(object):
         num_chunk = min(6, mp.cpu_count())
         if num_user>num_chunk and self.is_parallel:
             def update(tot_llk, cnt, start_idx, end_idx):
-                for user_idx in tqdm(range(start_idx, end_idx)):
+                for user_idx in tqdm(xrange(start_idx, end_idx)):
                     theta = theta_vec[user_idx]
                     # find all the item_id
                     logs = self.dao.get_log(user_idx)
@@ -379,7 +396,7 @@ class IRT_MMLE_2PL(object):
         else:
             user_ell = 0
             user_cnt = 0
-            for user_idx in range(num_user):
+            for user_idx in xrange(num_user):
                 theta = theta_vec[user_idx]
                 # find all the item_id
                 logs = self.dao.get_log(user_idx)

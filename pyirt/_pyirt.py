@@ -5,10 +5,11 @@ from .dao import localDAO
 def irt(data_src,
         dao = 'memory',
         theta_bnds=[-4, 4], num_theta=11,
-        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param='default',
+        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param={},
         model_spec='2PL',
         max_iter=10, tol=1e-3, nargout=2,
-        is_msg=False, is_parallel=False):
+        is_msg=False, is_parallel=False,
+        mode='debug'):
 
 
     # load data
@@ -19,7 +20,7 @@ def irt(data_src,
     
     # setup the model
     if model_spec == '2PL':
-        mod = model.IRT_MMLE_2PL(dao_instance, is_msg=is_msg, is_parallel=is_parallel)
+        mod = model.IRT_MMLE_2PL(dao_instance, is_msg=is_msg, is_parallel=is_parallel, mode=mode)
     else:
         raise Exception('Unknown model specification.')
 
