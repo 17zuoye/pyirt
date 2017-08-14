@@ -23,7 +23,29 @@ from ..algo import update_theta_distribution
 from datetime import datetime
 import multiprocessing as mp
 from tqdm import tqdm
+import time
 
+
+
+def procs_operator(procs, TIMEOUT, check_interval):
+    for p in procs:
+        p.start()
+    
+    start = time.time()
+    while time.time() - start < TIMEOUT:
+        if any(p.is_alive() for p in procs):
+            time.sleep(check_interval)  
+        else:
+            for p in procs:
+                p.join()
+            break
+    else:
+        for p in procs:
+            p.terminate()
+            p.join()
+
+        raise Exception('Time out, killing all process')
+    return procs
 
 class IRT_MMLE_2PL(object):
 
@@ -33,7 +55,7 @@ class IRT_MMLE_2PL(object):
     (2) solve
     (3) get esitmated result
     '''
-    def __init__(self, dao_instance, is_msg=False, is_parallel=False, mode='debug'):
+    def __init__(self, dao_instance, is_msg=False, is_parallel=False, num_cpu=6, check_interval=60, mode='debug'):
         # interface to data
         self.dao=dao_instance
         self.num_iter = 1
@@ -42,6 +64,8 @@ class IRT_MMLE_2PL(object):
 
         self.is_msg = is_msg
         self.is_parallel = is_parallel
+        self.num_cpu = num_cpu
+        self.check_interval = check_interval
         self.mode = mode
 
     def set_options(self, theta_bnds, num_theta, alpha_bnds, beta_bnds, max_iter, tol):
@@ -154,7 +178,7 @@ class IRT_MMLE_2PL(object):
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
         num_item = self.dao.get_num('item')
-        num_chunk = min(6, mp.cpu_count())
+        num_chunk = min(self.num_cpu, mp.cpu_count())
  
         if num_item > num_chunk and self.is_parallel: 
             def update(d, start_idx, end_idx):
@@ -184,23 +208,22 @@ class IRT_MMLE_2PL(object):
             # [A] calculate p(data,param|theta)
             chunk_list = tools.cut_list(num_item, num_chunk)
 
-            pool = []
+            procs = []
             manager = mp.Manager()
-            pool_repo = manager.dict()
+            procs_repo = manager.dict()
             
             self.dao.close_conn()
             for i in range(num_chunk):
-                p = mp.Process(target=update, args=(pool_repo, chunk_list[i][0],chunk_list[i][1],))
-                pool.append(p) 
-            for p in pool:
-                p.start()
-            for p in pool:
-                p.join()
-        
+                p = mp.Process(target=update, args=(procs_repo, chunk_list[i][0],chunk_list[i][1],))
+                procs.append(p) 
+
+            
+            procs = procs_operator(procs, 3600, self.check_interval)
+
             for item_idx in xrange(num_item):
                 self.item_param_dict[item_idx] = {
-                        'beta':pool_repo[item_idx][0],
-                        'alpha':pool_repo[item_idx][1],
+                        'beta':procs_repo[item_idx][0],
+                        'alpha':procs_repo[item_idx][1],
                         'c':self.item_param_dict[item_idx]['c']
                     }
 
@@ -303,7 +326,7 @@ class IRT_MMLE_2PL(object):
     def __update_theta_distr(self):
         # [A] calculate p(data,param|theta)
         num_user = self.dao.get_num('user')
-        num_chunk = min(6, mp.cpu_count())
+        num_chunk = min(self.num_cpu, mp.cpu_count())
         if num_user>num_chunk and self.is_parallel:
             def update(d, start_idx, end_idx):
                 for user_idx in tqdm(xrange(start_idx, end_idx)):
@@ -311,19 +334,18 @@ class IRT_MMLE_2PL(object):
                     d[user_idx] = update_theta_distribution(logs, self.num_theta, self.theta_prior_val, self.theta_density, self.item_param_dict)
             # [A] calculate p(data,param|theta)
             chunk_list = tools.cut_list(num_user, num_chunk)
-            pool = []
+            procs = []
             manager = mp.Manager()
-            pool_repo = manager.dict()
+            procs_repo = manager.dict()
             self.dao.close_conn()
             for i in range(num_chunk):
-                p = mp.Process(target=update, args=(pool_repo, chunk_list[i][0],chunk_list[i][1],))
-                pool.append(p) 
-            for p in pool:
-                p.start()
-            for p in pool:
-                p.join() 
+                p = mp.Process(target=update, args=(procs_repo, chunk_list[i][0],chunk_list[i][1],))
+                procs.append(p) 
+            
+            procs = procs_operator(procs, 5400, self.check_interval)
+            
             for user_idx in tqdm(xrange(num_user)):
-                self.posterior_theta_distr[user_idx,:] = pool_repo[user_idx]
+                self.posterior_theta_distr[user_idx,:] = procs_repo[user_idx]
         else:
             for user_idx in xrange(num_user):
                 logs = self.dao.get_log(user_idx)
@@ -356,7 +378,7 @@ class IRT_MMLE_2PL(object):
         #1/N * sum[i](1/Ni *sum[j] (log pij))
         theta_vec  = self.__calc_theta()
         num_user = self.dao.get_num('user')
-        num_chunk = min(6, mp.cpu_count())
+        num_chunk = min(self.num_cpu, mp.cpu_count())
         if num_user>num_chunk and self.is_parallel:
             def update(tot_llk, cnt, start_idx, end_idx):
                 for user_idx in tqdm(xrange(start_idx, end_idx)):
@@ -382,15 +404,13 @@ class IRT_MMLE_2PL(object):
             user_cnt = mp.Value('i', 0)
 
             chunk_list = tools.cut_list(num_user, num_chunk)
-            pool = []
+            procs = []
             self.dao.close_conn()
             for i in range(num_chunk):
                 p = mp.Process(target=update, args=(user_ell, user_cnt, chunk_list[i][0],chunk_list[i][1],))
-                pool.append(p) 
-            for p in pool:
-                p.start()
-            for p in pool:
-                p.join() 
+                procs.append(p) 
+            
+            procs = procs_operator(procs, 3600, self.check_interval)
 
             avg_ell = user_ell.value/user_cnt.value
         else:
