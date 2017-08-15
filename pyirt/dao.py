@@ -11,31 +11,23 @@ import pymongo
 from datetime import datetime
 
 class mongoDAO(object): 
+
     def __init__(self, connect_config, group_id=1, is_msg=False):
-        user_name = connect_config['user']
-        password = connect_config['password']
-        address = connect_config['address']  # IP:PORT
-        db_name = connect_config['db']
-        if 'authsource' not in connect_config:
-            mongouri = 'mongodb://{un}:{pw}@{addr}'.format(un=user_name, pw=password, addr=address)
-        else:
-            authsource = connect_config['authsource']
-            mongouri = 'mongodb://{un}:{pw}@{addr}/?authsource={auth_src}'.format(un=user_name, pw=password, addr=address, auth_src=authsource)
-        try:
-            self.client = pymongo.MongoClient(mongouri, connect=False, serverSelectionTimeoutMS=10, readPreference='secondaryPreferred')
-        except:
-            raise 
         
+        self.connect_config = connect_config
 
-        user2item_collection_name = 'irt_user2item'
-        item2user_collection_name = 'irt_item2user'
+        client = self.open_conn()
+        self.db_name = connect_config['db']
+
+        self.user2item_collection_name = 'irt_user2item'
+        self.item2user_collection_name = 'irt_item2user'
         
-        self.user2item = self.client[db_name][user2item_collection_name]
-        self.item2user = self.client[db_name][item2user_collection_name]
+        user2item_conn = client[self.db_name][self.user2item_collection_name]
+        item2user_conn = client[self.db_name][self.item2user_collection_name]
 
         
-        user_ids = list(set([x['id'] for x in self.user2item.find({'gid':group_id},{'id':1})]))
-        item_ids = list(set([x['id'] for x in self.item2user.find({'gid':group_id},{'id':1})]))
+        user_ids = list(set([x['id'] for x in user2item_conn.find({'gid':group_id},{'id':1})]))
+        item_ids = list(set([x['id'] for x in item2user_conn.find({'gid':group_id},{'id':1})]))
         
         _, self.user_idx_ref, self.user_reverse_idx_ref = construct_ref_dict(user_ids) 
         _, self.item_idx_ref, self.item_reverse_idx_ref = construct_ref_dict(item_ids)
@@ -46,28 +38,42 @@ class mongoDAO(object):
         self.gid = group_id
         self.is_msg = is_msg
         
-        self.close_conn()
+        client.close()
 
-    def close_conn(self):
-        self.client.close()
+    def open_conn(self):
+        
+        user_name = self.connect_config['user']
+        password = self.connect_config['password']
+        address = self.connect_config['address']  # IP:PORT
+        if 'authsource' not in self.connect_config:
+            mongouri = 'mongodb://{un}:{pw}@{addr}'.format(un=user_name, pw=password, addr=address)
+        else:
+            authsource = self.connect_config['authsource']
+            mongouri = 'mongodb://{un}:{pw}@{addr}/?authsource={auth_src}'.format(un=user_name, pw=password, addr=address, auth_src=authsource)
+        try:
+            client = pymongo.MongoClient(mongouri, connect=False, serverSelectionTimeoutMS=10, waitQueueTimeoutMS=100 ,readPreference='secondaryPreferred')
+        except:
+            raise 
+        return client
+
 
     def get_num(self, name):
         if name not in ['user','item']:
             raise Exception('Unknown stat source %s'%name)
         return self.stat[name]
 
-    def get_log(self, user_idx):
+    def get_log(self, user_idx, user2item_conn):
         user_id = self.translate('user', user_idx)
         # query
         if self.is_msg:
             stime = datetime.now()
-            res = self.user2item.find({'id':user_id, 'gid':self.gid})
+            res = user2item_conn.find({'id':user_id, 'gid':self.gid})
             etime = datetime.now()
             search_time = int((etime-stime).microseconds/1000)
             if search_time > 100:
                 print('s:%d' % search_time)
         else:
-            res = self.user2item.find({'id':user_id, 'gid':self.gid})
+            res = user2item_conn.find({'id':user_id, 'gid':self.gid})
         # parse
         if res.count() == 0:
             return_list = [] 
@@ -78,18 +84,18 @@ class mongoDAO(object):
             return_list = [(self.item_idx_ref[x[0]], x[1]) for x in log_list]
         return return_list
 
-    def get_map(self, item_idx, ans_key_list):
+    def get_map(self, item_idx, ans_key_list, item2user_conn):
         item_id = self.translate('item', item_idx)     
         # query
         if self.is_msg:
             stime = datetime.now()
-            res = self.item2user.find({'id':item_id, 'gid':self.gid})
+            res = item2user_conn.find({'id':item_id, 'gid':self.gid})
             etime = datetime.now()
             search_time = int((etime-stime).microseconds/1000)
             if search_time > 100:
                 print('s:%d' % search_time)
         else:
-            res = self.item2user.find({'id':item_id, 'gid':self.gid})
+            res = item2user_conn.find({'id':item_id, 'gid':self.gid})
         # parse
         if res.count() == 0:
             return_list =  [[] for ans_key in ans_key_list]
@@ -111,9 +117,6 @@ class mongoDAO(object):
         elif data_type == 'user':
             return self.user_reverse_idx_ref[idx]
     
-    def __del__(self):
-        self.client.close()
-
 class localDAO(object):
 
     def __init__(self, src):

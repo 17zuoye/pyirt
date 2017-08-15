@@ -55,16 +55,21 @@ class IRT_MMLE_2PL(object):
     (2) solve
     (3) get esitmated result
     '''
-    def __init__(self, dao_instance, is_msg=False, is_parallel=False, num_cpu=6, check_interval=60, mode='debug'):
+    def __init__(self, 
+            dao_instance, dao_type='memory',
+            is_msg=False, 
+            is_parallel=False, num_cpu=6, check_interval=60, 
+            mode='debug'):
         # interface to data
         self.dao=dao_instance
+        self.dao_type = dao_type
         self.num_iter = 1
         self.ell_list = []
         self.last_avg_prob = 0
 
         self.is_msg = is_msg
         self.is_parallel = is_parallel
-        self.num_cpu = num_cpu
+        self.num_cpu = min(num_cpu, mp.cpu_count())
         self.check_interval = check_interval
         self.mode = mode
 
@@ -152,7 +157,6 @@ class IRT_MMLE_2PL(object):
                                 (1-data_[i,j]) *(1-P(Y=1|param_j,theta_[i,k])
                                     )
         By similar logic, it is equivalent to sum (1-p) for all done wrong users
-
         '''
 
         # (1) update the posterior distribution of theta
@@ -168,20 +172,8 @@ class IRT_MMLE_2PL(object):
         Basic Math
             log likelihood(param_j) = sum_k(log likelihood(param_j, theta_k))
         '''
-        # [A] max for item parameter
-        opt_worker = optimizer.irt_2PL_Optimizer()
-        # the boundary is universal
-        # the boundary is set regardless of the constrained option because the
-        # constrained search serves as backup for outlier cases
-        opt_worker.set_bounds([self.beta_bnds, self.alpha_bnds])
-
-        # theta value is universal
-        opt_worker.set_theta(self.theta_prior_val)
-        num_item = self.dao.get_num('item')
-        num_chunk = min(self.num_cpu, mp.cpu_count())
- 
-        if num_item > num_chunk and self.is_parallel: 
-            def update(d, start_idx, end_idx):
+        def update(d, start_idx, end_idx):
+            try:
                 for item_idx in tqdm(xrange(start_idx, end_idx)):
                     initial_guess_val = (self.item_param_dict[item_idx]['beta'],
                                         self.item_param_dict[item_idx]['alpha'])
@@ -204,55 +196,49 @@ class IRT_MMLE_2PL(object):
                             raise e
                     finally:
                         d[item_idx] = est_param
-            
-            # [A] calculate p(data,param|theta)
-            chunk_list = tools.cut_list(num_item, num_chunk)
+            except:
+                raise
+        # [A] max for item parameter
+        opt_worker = optimizer.irt_2PL_Optimizer()
+        # the boundary is universal
+        # the boundary is set regardless of the constrained option because the
+        # constrained search serves as backup for outlier cases
+        opt_worker.set_bounds([self.beta_bnds, self.alpha_bnds])
 
-            procs = []
-            manager = mp.Manager()
-            procs_repo = manager.dict()
-            
-            self.dao.close_conn()
-            for i in range(num_chunk):
-                p = mp.Process(target=update, args=(procs_repo, chunk_list[i][0],chunk_list[i][1],))
-                procs.append(p) 
+        # theta value is universal
+        opt_worker.set_theta(self.theta_prior_val)
+        num_item = self.dao.get_num('item')
 
-            
-            procs = procs_operator(procs, 3600, self.check_interval)
-
-            for item_idx in xrange(num_item):
-                self.item_param_dict[item_idx] = {
-                        'beta':procs_repo[item_idx][0],
-                        'alpha':procs_repo[item_idx][1],
-                        'c':self.item_param_dict[item_idx]['c']
-                    }
-
-
+ 
+        if num_item > self.num_cpu and self.is_parallel: 
+            num_chunk = self.num_cpu
         else:
-            for item_idx in xrange(num_item):
-                initial_guess_val = (self.item_param_dict[item_idx]['beta'],
-                                    self.item_param_dict[item_idx]['alpha'])
-                opt_worker.set_initial_guess(initial_guess_val)  # the value is a mix of 1/0 and current estimate
-                opt_worker.set_c(self.item_param_dict[item_idx]['c'])
-                
-                # estimate
-                expected_right_count = self.item_expected_right_by_theta[:, item_idx]
-                expected_wrong_count = self.item_expected_wrong_by_theta[:, item_idx]
-                input_data = [expected_right_count, expected_wrong_count]
-                opt_worker.load_res_data(input_data)
-                est_param = opt_worker.solve_param_mix(self.is_constrained)
-                
-                try:
-                    est_param = opt_worker.solve_param_mix(self.is_constrained)
-                except Exception as e:
-                    if self.mode=='production':
-                        continue
-                    else:
-                        raise e
-                finally:
-                    # update
-                    self.item_param_dict[item_idx]['beta'] = est_param[0]
-                    self.item_param_dict[item_idx]['alpha'] = est_param[1]
+            num_chunk = 1
+
+        # [A] calculate p(data,param|theta)
+        chunk_list = tools.cut_list(num_item, num_chunk)
+
+        procs = []
+        manager = mp.Manager()
+        procs_repo = manager.dict()
+        
+        for i in range(num_chunk):
+            p = mp.Process(target=update, args=(procs_repo, chunk_list[i][0],chunk_list[i][1],))
+            procs.append(p) 
+
+        if num_chunk > 1:      
+            procs = procs_operator(procs, 3600, self.check_interval)
+        else:
+            procs = procs_operator(procs, 7200, 0.1)
+
+        for item_idx in xrange(num_item):
+            self.item_param_dict[item_idx] = {
+                    'beta':procs_repo[item_idx][0],
+                    'alpha':procs_repo[item_idx][1],
+                    'c':self.item_param_dict[item_idx]['c']
+                }
+
+
 
         # [B] max for theta density
         self.theta_density = self.posterior_theta_distr.sum(axis=0)/self.posterior_theta_distr.sum()
@@ -262,30 +248,34 @@ class IRT_MMLE_2PL(object):
         '''
         preserve user and item parameter from last iteration. This is useful in restoring after a declining llk iteration 
         '''
+        if self.is_msg: print('score calculating')
         avg_prob = np.exp(self.__calc_data_likelihood())
+        if self.is_msg: print('score calculated.')
+
         self.ell_list.append(avg_prob)
         if self.is_msg: print(avg_prob)
 
-        if self.last_avg_prob < avg_prob and avg_prob - self.last_avg_prob <= self.tol:
+        diff = avg_prob - self.last_avg_prob
+
+        if diff >= 0 and diff <= self.tol:
             print('EM converged at iteration %d.' % self.num_iter)
-            return True
-        
-        # if the algorithm improves, then ell > ell_t0
-        if self.last_avg_prob > avg_prob:
+            return True 
+        elif diff <0:
             self.item_param_dict = self.last_item_param_dict
             print('Likelihood descrease, stops at iteration %d.' % self.num_iter)
             return True
+        else:
+            # diff larger than tolerance
+            # update the stop condition
+            self.last_avg_prob = avg_prob
+            self.num_iter += 1
 
-        # update the stop condition
-        self.last_avg_prob = avg_prob
-        self.num_iter += 1
-
-        if (self.num_iter > self.max_iter):
-            print('EM does not converge within max iteration')
-            return True 
-        if self.num_iter != 1:
-            self.last_item_param_dict = self.item_param_dict     
-        return False
+            if (self.num_iter > self.max_iter):
+                print('EM does not converge within max iteration')
+                return True 
+            if self.num_iter != 1:
+                self.last_item_param_dict = self.item_param_dict     
+            return False
 
     def _init_solver_param(self, is_constrained, boundary, solver_type, max_iter, tol):
         # initialize bounds
@@ -324,32 +314,44 @@ class IRT_MMLE_2PL(object):
         self.posterior_theta_distr = np.zeros((self.dao.get_num('user'), num_theta))
 
     def __update_theta_distr(self):
+        def update(d, start_idx, end_idx):
+            try:
+                if self.dao_type=='db':
+                    client = self.dao.open_conn()
+                    user2item_conn = client[self.dao.db_name][self.dao.user2item_collection_name]
+                for user_idx in tqdm(xrange(start_idx, end_idx)):
+                    if self.dao_type=='db':
+                        logs = self.dao.get_log(user_idx, user2item_conn)
+                    else:
+                        logs = self.dao.get_log(user_idx)
+                    d[user_idx] = update_theta_distribution(logs, self.num_theta, self.theta_prior_val, self.theta_density, self.item_param_dict)
+                if self.dao_type=='db':
+                    client.close()
+            except:
+                raise
         # [A] calculate p(data,param|theta)
         num_user = self.dao.get_num('user')
-        num_chunk = min(self.num_cpu, mp.cpu_count())
-        if num_user>num_chunk and self.is_parallel:
-            def update(d, start_idx, end_idx):
-                for user_idx in tqdm(xrange(start_idx, end_idx)):
-                    logs = self.dao.get_log(user_idx)
-                    d[user_idx] = update_theta_distribution(logs, self.num_theta, self.theta_prior_val, self.theta_density, self.item_param_dict)
-            # [A] calculate p(data,param|theta)
-            chunk_list = tools.cut_list(num_user, num_chunk)
-            procs = []
-            manager = mp.Manager()
-            procs_repo = manager.dict()
-            self.dao.close_conn()
-            for i in range(num_chunk):
-                p = mp.Process(target=update, args=(procs_repo, chunk_list[i][0],chunk_list[i][1],))
-                procs.append(p) 
-            
-            procs = procs_operator(procs, 5400, self.check_interval)
-            
-            for user_idx in tqdm(xrange(num_user)):
-                self.posterior_theta_distr[user_idx,:] = procs_repo[user_idx]
+        if num_user > self.num_cpu and self.is_parallel:
+            num_chunk = self.num_cpu
         else:
-            for user_idx in xrange(num_user):
-                logs = self.dao.get_log(user_idx)
-                self.posterior_theta_distr[user_idx, :] = update_theta_distribution(logs, self.num_theta, self.theta_prior_val, self.theta_density, self.item_param_dict) 
+            num_chunk = 1
+
+        # [A] calculate p(data,param|theta)
+        chunk_list = tools.cut_list(num_user, num_chunk)
+        procs = []
+        manager = mp.Manager()
+        procs_repo = manager.dict()
+        for i in range(num_chunk):
+            p = mp.Process(target=update, args=(procs_repo, chunk_list[i][0],chunk_list[i][1],))
+            procs.append(p) 
+        
+        if num_chunk>1: 
+            procs = procs_operator(procs, 5400, self.check_interval)
+        else:
+            procs = procs_operator(procs, 7200, 0.1)
+
+        for user_idx in tqdm(xrange(num_user)):
+            self.posterior_theta_distr[user_idx,:] = procs_repo[user_idx]
         # When the loop finish, check if the theta_density adds up to unity for each user
         check_user_distr_marginal = np.sum(self.posterior_theta_distr, axis=1)
         if any(abs(check_user_distr_marginal - 1.0) > 0.0001):
@@ -366,25 +368,36 @@ class IRT_MMLE_2PL(object):
         self.item_expected_right_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
         self.item_expected_wrong_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
         num_item = self.dao.get_num('item')
+        if self.dao_type == 'db':
+            client = self.dao.open_conn()
+            item2user_conn = client[self.dao.db_name][self.dao.item2user_collection_name] 
         for item_idx in tqdm(xrange(num_item)):
-            map_user_idx_vec = self.dao.get_map(item_idx, ['1','0'])  # reduce the io time for mongo dao 
+            if self.dao_type == 'db':
+                map_user_idx_vec = self.dao.get_map(item_idx, ['1','0'], item2user_conn)  
+            else:
+                map_user_idx_vec = self.dao.get_map(item_idx, ['1','0'])  
             self.item_expected_right_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[map_user_idx_vec[0], :], axis=0)
             self.item_expected_wrong_by_theta[:, item_idx] = np.sum(self.posterior_theta_distr[map_user_idx_vec[1], :], axis=0)
+        if self.dao_type == 'db':
+            client.close()
 
     def __calc_data_likelihood(self):
         # calculate the likelihood for the data set
         # geometric within learner and across learner
-       
         #1/N * sum[i](1/Ni *sum[j] (log pij))
-        theta_vec  = self.__calc_theta()
-        num_user = self.dao.get_num('user')
-        num_chunk = min(self.num_cpu, mp.cpu_count())
-        if num_user>num_chunk and self.is_parallel:
-            def update(tot_llk, cnt, start_idx, end_idx):
+        def update(tot_llk, cnt, start_idx, end_idx):
+            try:
+                if self.dao_type == 'db':
+                    client = self.dao.open_conn()
+                    user2item_conn = client[self.dao.db_name][self.dao.user2item_collection_name]
+
                 for user_idx in tqdm(xrange(start_idx, end_idx)):
                     theta = theta_vec[user_idx]
                     # find all the item_id
-                    logs = self.dao.get_log(user_idx)
+                    if self.dao_type == 'db':
+                        logs = self.dao.get_log(user_idx, user2item_conn)
+                    else:
+                        logs = self.dao.get_log(user_idx)
                     if len(logs) == 0:
                         continue
                     ell = 0
@@ -399,40 +412,36 @@ class IRT_MMLE_2PL(object):
                         tot_llk.value += ell/len(logs)
                     with cnt.get_lock():
                         cnt.value += 1
+                if self.dao_type == 'db':
+                    client.close()
+            except:
+                raise
 
-            user_ell = mp.Value('d', 0.0)  
-            user_cnt = mp.Value('i', 0)
+        theta_vec  = self.__calc_theta()
+        num_user = self.dao.get_num('user')
 
-            chunk_list = tools.cut_list(num_user, num_chunk)
-            procs = []
-            self.dao.close_conn()
-            for i in range(num_chunk):
-                p = mp.Process(target=update, args=(user_ell, user_cnt, chunk_list[i][0],chunk_list[i][1],))
-                procs.append(p) 
-            
-            procs = procs_operator(procs, 3600, self.check_interval)
 
-            avg_ell = user_ell.value/user_cnt.value
+        if num_user > self.num_cpu and self.is_parallel:
+            num_chunk = self.num_cpu
         else:
-            user_ell = 0
-            user_cnt = 0
-            for user_idx in xrange(num_user):
-                theta = theta_vec[user_idx]
-                # find all the item_id
-                logs = self.dao.get_log(user_idx)
-                if len(logs) == 0:
-                    continue
-                ell = 0
-                for log in logs:
-                    item_idx = log[0]
-                    ans_tag = log[1]
-                    alpha = self.item_param_dict[item_idx]['alpha']
-                    beta = self.item_param_dict[item_idx]['beta']
-                    c = self.item_param_dict[item_idx]['c']
-                    ell += clib.log_likelihood_2PL(0.0+ans_tag, 1.0-ans_tag, theta, alpha, beta, c) 
-                user_ell += ell/len(logs)
-                user_cnt += 1
-            avg_ell = user_ell / user_cnt
+            num_chunk = 1
+        
+        user_ell = mp.Value('d', 0.0)  
+        user_cnt = mp.Value('i', 0)
+        chunk_list = tools.cut_list(num_user, num_chunk)
+        
+        procs = []
+        for i in range(num_chunk):
+            p = mp.Process(target=update, args=(user_ell, user_cnt, chunk_list[i][0],chunk_list[i][1],))
+            procs.append(p) 
+        
+        if num_chunk>1: 
+            procs = procs_operator(procs, 1200, self.check_interval)
+        else:
+            procs = procs_operator(procs, 7200, 0.1)
+
+        avg_ell = user_ell.value/user_cnt.value
+
         return avg_ell 
 
     def __calc_theta(self):
