@@ -142,6 +142,21 @@ class TestIrtFunctions(unittest.TestCase):
 
         self.assertTrue(abs(calc_hessian - true_hessian_approx_theta) < 1e-4)
 
+class TestCutList(unittest.TestCase):
+    def test_no_mod(self):
+        test_chunks = tools.cut_list(100,4)
+        true_chunks = [(0,25),(25,50),(50,75),(75,100)]
+        for i in range(4):
+            self.assertTrue(test_chunks[i]==true_chunks[i])
+    
+    def test_mod(self):
+        test_chunks = tools.cut_list(23,4)
+        true_chunks = [(0,5),(5,11),(11,17),(17,23)]
+        for i in range(4):
+            self.assertTrue(test_chunks[i]==true_chunks[i])
+        
+
+
 
 if __name__ == '__main__':
     unittest.main()
