@@ -31,8 +31,8 @@ class mongoDAO(object):
         self.item2user = self.client[db_name][item2user_collection_name]
         
         # TODO:不能做全量扫描
-        user_ids =  self.user2item.find().distinct('id')
-        item_ids =  self.item2user.find().distinct('id')
+        user_ids =  list(set([x['id'] for x in self.user2item.find({'gid':group_id}, {'id':1})]))
+        item_ids =  list(set([x['id'] for x in self.item2user.find({'gid':group_id}, {'id':1})]))
         
         _, self.user_idx_ref, self.user_reverse_idx_ref = construct_ref_dict(user_ids) 
         _, self.item_idx_ref, self.item_reverse_idx_ref = construct_ref_dict(item_ids)
@@ -90,10 +90,10 @@ class localDAO(object):
         return self.database.user2item[user_idx]
 
     def get_right_map(self, item_idx):
-        return self.database.right_map[item_idx]
+        return self.database.item2user[1][item_idx]
     
     def get_wrong_map(self, item_idx):
-        return self.database.wrong_map[item_idx]
+        return self.database.item2user[0][item_idx]
 
     def translate(self, data_type, idx):
         if data_type == 'item':
@@ -132,7 +132,7 @@ class localDataBase(object):
     '''
 
     def _process_data(self, user_idx_vec, item_idx_vec, ans_tags):
-        self.item2user = defaultdict(list)
+        self.item2user = defaultdict(defaultdict(list))
         self.user2item = defaultdict(list)
         
         self.stat = {}
@@ -145,19 +145,6 @@ class localDataBase(object):
             user_idx = user_idx_vec[i]
             ans_tag = ans_tags[i]
             # add to the data dictionary
-            self.item2user[item_idx].append((user_idx, ans_tag))
+            self.item2user[item_idx][ans_tag].append(user_idx)
             self.user2item[user_idx].append((item_idx, ans_tag))
-
-    def _init_right_wrong_map(self):
-        self.right_map = defaultdict(list)
-        self.wrong_map = defaultdict(list)
-
-        for item_idx, log_result in self.item2user.items():
-            for log in log_result:
-                ans_tag = log[1]
-                user_idx = log[0]
-                if ans_tag == 1:
-                    self.right_map[item_idx].append(user_idx)
-                else:
-                    self.wrong_map[item_idx].append(user_idx)
 
