@@ -38,3 +38,13 @@ def logsum(logp):
     w = max(logp)
     logSump = w + np.log(sum(np.exp(logp - w)))
     return logSump
+
+
+
+def cut_list(list_length, num_chunk):
+    chunk_bnd = [0]
+    for i in range(num_chunk):
+        chunk_bnd.append(int(list_length*(i+1)/num_chunk))
+    chunk_bnd.append(list_length)
+    chunk_list = [(chunk_bnd[i], chunk_bnd[i+1]) for i in range(num_chunk) ]
+    return chunk_list

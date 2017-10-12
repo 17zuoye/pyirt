@@ -3,23 +3,26 @@ from .solver import model
 from .dao import localDAO
 
 def irt(data_src,
-        dao = 'memory',
+        dao_type = 'memory',
         theta_bnds=[-4, 4], num_theta=11,
-        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param='default',
+        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param={},
         model_spec='2PL',
         max_iter=10, tol=1e-3, nargout=2,
-        is_msg=False):
+        is_msg=False, 
+        is_parallel=False, num_cpu=6, check_interval = 60,
+        mode='debug'):
 
 
     # load data
-    if dao=='memory':
+    if dao_type=='memory':
         dao_instance = localDAO(data_src)
     else:
         dao_instance = data_src
     
     # setup the model
     if model_spec == '2PL':
-        mod = model.IRT_MMLE_2PL(dao_instance, is_msg=is_msg)
+        mod = model.IRT_MMLE_2PL(dao_instance, dao_type=dao_type,
+                is_msg=is_msg, is_parallel=is_parallel, num_cpu=num_cpu, check_interval=check_interval, mode=mode)
     else:
         raise Exception('Unknown model specification.')
 
