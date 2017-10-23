@@ -12,11 +12,11 @@ def irt(data_src,
         model_spec='2PL',
         max_iter=10, tol=1e-3, nargout=2,
         is_parallel=False, num_cpu=6, check_interval = 60,
-        mode='DEBUG', log_path=None):
+        mode='debug', log_path=None):
 
 
     # add logging
-    logger = Logger.logger(log_path, mode)
+    logger = Logger.logger(log_path)
 
     # load data
     logger.info("start loading data")

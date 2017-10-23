@@ -13,7 +13,7 @@ from datetime import datetime
 #NOTE: mongoDAO不使用runtime的logger体系
 class mongoDAO(object): 
 
-    def __init__(self,connect_config, group_id=1):
+    def __init__(self,connect_config, group_id=1, is_msg=False):
         
 
         self.connect_config = connect_config
