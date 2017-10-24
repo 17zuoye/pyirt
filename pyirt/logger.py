@@ -6,19 +6,19 @@ import os
 
 class Logger():
     @staticmethod
-    def logger(logger_out_dir):
-        
+    def logger(log_path):
+       
         date_str = time.strftime('%Y-%m-%d', time.localtime(time.time()))
         
-
-        if logger_out_dir is not None:
-            if not os.path.exists(logger_out_dir):
-                os.makedirs(logger_out_dir)
+        if log_path is not None:
+            log_dir = os.path.dirname(log_path)
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
             logging.basicConfig(
                 level=logging.DEBUG,
-                format='%(asctime)s %(pathname)s[line:%(lineno)d] %(levelname)s: %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S',
-                filename=logger_out_dir + '/{date}.log'.format(date=date_str),
+                format = '%(asctime)s %(pathname)s[line:%(lineno)d] %(levelname)s: %(message)s',
+                datefmt ='%Y-%m-%d %H:%M:%S',
+                filename = log_path,
                 filemode='w')
         else:
             logging.basicConfig(
