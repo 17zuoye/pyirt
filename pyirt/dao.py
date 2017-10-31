@@ -76,9 +76,10 @@ class mongoDAO(object):
         else:
             res = user2item_conn.find({'id':user_id, 'gid':self.gid})
         # parse
-        if res.count() == 0:
+        res_num = res.count()
+        if res_num == 0:
             return_list = [] 
-        elif res.count() > 1:
+        elif res_num > 1:
             raise Exception('duplicate doc for (%s, %d) in user2item' % (user_id, self.gid))
         else:
             log_list = res[0]['data']
@@ -98,9 +99,10 @@ class mongoDAO(object):
         else:
             res = item2user_conn.find({'id':item_id, 'gid':self.gid})
         # parse
-        if res.count() == 0:
+        res_num = res.count()
+        if res_num == 0:
             return_list =  [[] for ans_key in ans_key_list]
-        elif res.count() > 1:
+        elif res_num > 1:
             raise Exception('duplicate doc for (%s, %d) in item2user' % (item_id, self.gid))
         else:
             doc = res[0]['data']
