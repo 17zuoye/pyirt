@@ -5,15 +5,17 @@ from six import string_types
 from collections import defaultdict
 
 from .util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
-
 import pymongo
-
 from datetime import datetime
 
+
+
+#NOTE: mongoDAO不使用runtime的logger体系
 class mongoDAO(object): 
 
-    def __init__(self, connect_config, group_id=1, is_msg=False):
+    def __init__(self,connect_config, group_id=1, is_msg=False):
         
+
         self.connect_config = connect_config
 
         client = self.open_conn()
@@ -34,7 +36,6 @@ class mongoDAO(object):
         
         self.stat = {'user':len(self.user_idx_ref.keys()), 'item':len(self.item_idx_ref.keys())}
          
-        print('search idx created.')
         self.gid = group_id
         self.is_msg = is_msg
         
@@ -71,7 +72,7 @@ class mongoDAO(object):
             etime = datetime.now()
             search_time = int((etime-stime).microseconds/1000)
             if search_time > 100:
-                print('s:%d' % search_time)
+                print('warning: slow search:%d' % search_time)
         else:
             res = user2item_conn.find({'id':user_id, 'gid':self.gid})
         # parse
@@ -93,7 +94,7 @@ class mongoDAO(object):
             etime = datetime.now()
             search_time = int((etime-stime).microseconds/1000)
             if search_time > 100:
-                print('s:%d' % search_time)
+                print('warning:slow search:%d' % search_time)
         else:
             res = item2user_conn.find({'id':item_id, 'gid':self.gid})
         # parse
@@ -119,9 +120,9 @@ class mongoDAO(object):
     
 class localDAO(object):
 
-    def __init__(self, src):
+    def __init__(self,  src, logger):
          
-        self.database = localDataBase(src)
+        self.database = localDataBase(src, logger)
         
         # quasi-bitmap 
         user_id_idx_vec, self.user_idx_ref, self.user_reverse_idx_ref = construct_ref_dict(self.database.user_ids) 
@@ -152,8 +153,9 @@ class localDAO(object):
 
 
 class localDataBase(object):
-    def __init__(self, src):
+    def __init__(self, src, logger):
 
+        self.logger = logger
         if isinstance(src, io.IOBase):
             # if the src is file handle
             self.user_ids, self.item_ids, self.ans_tags = loadFromHandle(src)
@@ -166,13 +168,13 @@ class localDataBase(object):
         start_time = time.time()
         self._process_data(user_idx_vec, item_idx_vec, ans_tags)
         if msg:
-            print("--- Process: %f secs ---" % np.round((time.time() - start_time)))
+            logger.debug("--- Process: %f secs ---" % np.round((time.time() - start_time)))
 
        # initialize some intermediate variables used in the E step
         start_time = time.time()
         self._init_item2user_map()
         if msg:
-            print("--- Sparse Mapping: %f secs ---" % np.round((time.time() - start_time)))
+            logger.debug("--- Sparse Mapping: %f secs ---" % np.round((time.time() - start_time)))
 
     '''
     Need the following dictionary for esitmation routine
@@ -181,7 +183,7 @@ class localDataBase(object):
     '''
 
     def _process_data(self, user_idx_vec, item_idx_vec, ans_tags):
-        self.item2user = defaultdict(list)
+        self.item2user = {}
         self.user2item = defaultdict(list)
         
         self.stat = {}
@@ -194,18 +196,16 @@ class localDataBase(object):
             user_idx = user_idx_vec[i]
             ans_tag = ans_tags[i]
             # add to the data dictionary
-            self.item2user[item_idx].append((user_idx, ans_tag))
+            if item_idx not in self.item2user:
+                self.item2user[item_idx] = defaultdict(list)
+            self.item2user[item_idx][ans_tag].append(user_idx)
             self.user2item[user_idx].append((item_idx, ans_tag))
 
     def _init_item2user_map(self, ans_key_list = ['0','1']):
         
-        self.item2user_map = {}
-        for ans_key in ans_key_list:
-            self.item2user_map[ans_key] = defaultdict(list)
+        self.item2user_map = defaultdict(dict)
 
         for item_idx, log_result in self.item2user.items():
-            for log in log_result:
-                ans_tag = log[1]
-                user_idx = log[0]
-                self.item2user_map[str(ans_tag)][item_idx].append(user_idx)
+            for ans_tag, user_idx_vec in log_result.items():
+                self.item2user_map[str(ans_tag)][item_idx] = user_idx_vec
 
