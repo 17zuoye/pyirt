@@ -24,7 +24,8 @@ from datetime import datetime
 import multiprocessing as mp
 from tqdm import tqdm
 import time
-
+import logging
+import sys
 
 
 def procs_operator(procs, TIMEOUT, check_interval):
@@ -56,18 +57,18 @@ class IRT_MMLE_2PL(object):
     (3) get esitmated result
     '''
     def __init__(self, 
-            dao_instance, dao_type='memory',
-            is_msg=False, 
+            dao_instance, logger, 
+            dao_type='memory',
             is_parallel=False, num_cpu=6, check_interval=60, 
             mode='debug'):
         # interface to data
         self.dao=dao_instance
         self.dao_type = dao_type
+        self.logger = logger
         self.num_iter = 1
         self.ell_list = []
         self.last_avg_prob = 0
 
-        self.is_msg = is_msg
         self.is_parallel = is_parallel
         self.num_cpu = min(num_cpu, mp.cpu_count())
         self.check_interval = check_interval
@@ -87,7 +88,7 @@ class IRT_MMLE_2PL(object):
 
     def set_guess_param(self, in_guess_param):
         self.guess_param_dict = {}
-        for item_idx in xrange(self.dao.get_num('item')):
+        for item_idx in range(self.dao.get_num('item')):
             item_id = self.dao.translate('item', item_idx) 
             if item_id in in_guess_param:
                 self.guess_param_dict[item_idx] = {'c': float(in_guess_param[item_id])}
@@ -104,32 +105,29 @@ class IRT_MMLE_2PL(object):
             stime = datetime.now()
             self._exp_step()
             etime = datetime.now()
-            if self.is_msg: 
-                runtime = (etime-stime).microseconds / 1000
-                print('E step runs for %s sec' %runtime)
+            runtime = (etime-stime).microseconds / 1000
+            self.logger.debug('E step runs for %s sec' %runtime)
             
             #----- M step -----
             stime = datetime.now()
             self._max_step()
             etime = datetime.now()
-            if self.is_msg: 
-                runtime = (etime-stime).microseconds / 1000
-                print('M step runs for %s sec' %runtime)
+            runtime = (etime-stime).microseconds / 1000
+            self.logger.debug('M step runs for %s sec' %runtime)
             
             # ---- Stop Condition ----
             stime = datetime.now()
             is_stop = self._check_stop()
             etime = datetime.now()
-            if self.is_msg: 
-                runtime = (etime-stime).microseconds / 1000
-                print('stop condition runs for %s sec' %runtime)
+            runtime = (etime-stime).microseconds / 1000
+            self.logger.debug('stop condition runs for %s sec' %runtime)
 
             if is_stop:
                 break
     
     def get_item_param(self):
         output_item_param = {}
-        for item_idx in xrange(self.dao.get_num('item')):
+        for item_idx in range(self.dao.get_num('item')):
             item_id = self.dao.translate('item', item_idx)
             output_item_param[item_id] = self.item_param_dict[item_idx]  
         return output_item_param
@@ -137,7 +135,7 @@ class IRT_MMLE_2PL(object):
     def get_user_param(self):
         output_user_param = {}
         theta_vec = self.__calc_theta()
-        for user_idx in xrange(self.dao.get_num('user')):
+        for user_idx in range(self.dao.get_num('user')):
             user_id = self.dao.translate('user', user_idx)
             output_user_param[user_id] = theta_vec[user_idx]
         return output_user_param
@@ -174,7 +172,7 @@ class IRT_MMLE_2PL(object):
         '''
         def update(d, start_idx, end_idx):
             try:
-                for item_idx in tqdm(xrange(start_idx, end_idx)):
+                for item_idx in tqdm(range(start_idx, end_idx)):
                     initial_guess_val = (self.item_param_dict[item_idx]['beta'],
                                         self.item_param_dict[item_idx]['alpha'])
                     opt_worker.set_initial_guess(initial_guess_val)  # the value is a mix of 1/0 and current estimate
@@ -190,13 +188,15 @@ class IRT_MMLE_2PL(object):
                     except Exception as e:
                         if self.mode=='production':
                             # In production mode, use the previous iteration
-                            print('Item %d does not fit'%item_idx)
+                            self.logger.error('Item %d does not fit'%item_idx)
                             d[item_idx] = self.item_param_dict[item_idx]
                         else:
+                            self.logger.critical(e.strerror)
                             raise e
                     finally:
                         d[item_idx] = est_param
             except:
+                self.logger.critical("Unexpected error:", sys.exc_info()[0])
                 raise
         # [A] max for item parameter
         opt_worker = optimizer.irt_2PL_Optimizer()
@@ -231,7 +231,7 @@ class IRT_MMLE_2PL(object):
         else:
             procs = procs_operator(procs, 7200, 0.1)
 
-        for item_idx in xrange(num_item):
+        for item_idx in range(num_item):
             self.item_param_dict[item_idx] = {
                     'beta':procs_repo[item_idx][0],
                     'alpha':procs_repo[item_idx][1],
@@ -248,21 +248,21 @@ class IRT_MMLE_2PL(object):
         '''
         preserve user and item parameter from last iteration. This is useful in restoring after a declining llk iteration 
         '''
-        if self.is_msg: print('score calculating')
+        self.logger.debug('score calculating')
         avg_prob = np.exp(self.__calc_data_likelihood())
-        if self.is_msg: print('score calculated.')
+        self.logger.debug('score calculated.')
 
         self.ell_list.append(avg_prob)
-        if self.is_msg: print(avg_prob)
+        self.logger.debug(avg_prob)
 
         diff = avg_prob - self.last_avg_prob
 
         if diff >= 0 and diff <= self.tol:
-            print('EM converged at iteration %d.' % self.num_iter)
+            self.logger.info('EM converged at iteration %d.' % self.num_iter)
             return True 
         elif diff <0:
             self.item_param_dict = self.last_item_param_dict
-            print('Likelihood descrease, stops at iteration %d.' % self.num_iter)
+            self.logger.info('Likelihood descrease, stops at iteration %d.' % self.num_iter)
             return True
         else:
             # diff larger than tolerance
@@ -271,7 +271,7 @@ class IRT_MMLE_2PL(object):
             self.num_iter += 1
 
             if (self.num_iter > self.max_iter):
-                print('EM does not converge within max iteration')
+                self.logger.info('EM does not converge within max iteration')
                 return True 
             if self.num_iter != 1:
                 self.last_item_param_dict = self.item_param_dict     
@@ -290,7 +290,7 @@ class IRT_MMLE_2PL(object):
 
     def _init_item_param(self):
         self.item_param_dict = {}
-        for item_idx in xrange(self.dao.get_num('item')):
+        for item_idx in range(self.dao.get_num('item')):
             # need to call the old item_id
             c = self.guess_param_dict[item_idx]['c']
             self.item_param_dict[item_idx] = {'alpha': 1.0, 'beta': 0.0, 'c': c}
@@ -319,7 +319,7 @@ class IRT_MMLE_2PL(object):
                 if self.dao_type=='db':
                     client = self.dao.open_conn()
                     user2item_conn = client[self.dao.db_name][self.dao.user2item_collection_name]
-                for user_idx in tqdm(xrange(start_idx, end_idx)):
+                for user_idx in tqdm(range(start_idx, end_idx)):
                     if self.dao_type=='db':
                         logs = self.dao.get_log(user_idx, user2item_conn)
                     else:
@@ -328,6 +328,7 @@ class IRT_MMLE_2PL(object):
                 if self.dao_type=='db':
                     client.close()
             except:
+                self.logger.critical("Unexpected error:", sys.exc_info()[0])
                 raise
         # [A] calculate p(data,param|theta)
         num_user = self.dao.get_num('user')
@@ -350,7 +351,7 @@ class IRT_MMLE_2PL(object):
         else:
             procs = procs_operator(procs, 7200, 0.1)
 
-        for user_idx in xrange(num_user):
+        for user_idx in range(num_user):
             self.posterior_theta_distr[user_idx,:] = procs_repo[user_idx]
         
         # When the loop finish, check if the theta_density adds up to unity for each user
@@ -371,7 +372,7 @@ class IRT_MMLE_2PL(object):
                 if self.dao_type == 'db':
                     client = self.dao.open_conn()
                     item2user_conn = client[self.dao.db_name][self.dao.item2user_collection_name] 
-                for item_idx in tqdm(xrange(start_idx, end_idx)):
+                for item_idx in tqdm(range(start_idx, end_idx)):
                     if self.dao_type == 'db':
                         map_user_idx_vec = self.dao.get_map(item_idx, ['1','0'], item2user_conn)  
                     else:
@@ -383,6 +384,7 @@ class IRT_MMLE_2PL(object):
                 if self.dao_type == 'db':
                     client.close()
             except:
+                self.logger.critical("Unexpected error:", sys.exc_info()[0])
                 raise 
 
         num_item = self.dao.get_num('item')
@@ -407,7 +409,7 @@ class IRT_MMLE_2PL(object):
           
         self.item_expected_right_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
         self.item_expected_wrong_by_theta = np.zeros((self.num_theta, self.dao.get_num('item')))
-        for item_idx in xrange(num_item):
+        for item_idx in range(num_item):
             self.item_expected_right_by_theta[:, item_idx] = procs_repo[item_idx][1]
             self.item_expected_wrong_by_theta[:, item_idx] = procs_repo[item_idx][0]
 
@@ -423,7 +425,7 @@ class IRT_MMLE_2PL(object):
                     client = self.dao.open_conn()
                     user2item_conn = client[self.dao.db_name][self.dao.user2item_collection_name]
 
-                for user_idx in tqdm(xrange(start_idx, end_idx)):
+                for user_idx in tqdm(range(start_idx, end_idx)):
                     theta = theta_vec[user_idx]
                     # find all the item_id
                     if self.dao_type == 'db':
@@ -448,6 +450,7 @@ class IRT_MMLE_2PL(object):
                 if self.dao_type == 'db':
                     client.close()
             except:
+                self.logger.critical("Unexpected error:", sys.exc_info()[0])
                 raise
 
         theta_vec  = self.__calc_theta()
