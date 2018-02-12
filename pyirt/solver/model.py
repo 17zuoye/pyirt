@@ -347,9 +347,9 @@ class IRT_MMLE_2PL(object):
             procs.append(p) 
         
         if num_chunk>1: 
-            procs = procs_operator(procs, 5400, self.check_interval)
+            procs = procs_operator(procs, 3600*10, self.check_interval)
         else:
-            procs = procs_operator(procs, 7200, 0.1)
+            procs = procs_operator(procs, 3600*24, 0.1)
 
         for user_idx in range(num_user):
             self.posterior_theta_distr[user_idx,:] = procs_repo[user_idx]
