@@ -7,8 +7,11 @@ sys.path.append(RootDir)
 import unittest
 from pyirt.logger import Logger
 
+
 class TestLogger(unittest.TestCase):
     def setUp(self):
+        if os.path.exists('mock/'):
+            os.removedirs('mock/')
         os.mkdir('mock/')
 
     def test_log(self):
@@ -19,11 +22,12 @@ class TestLogger(unittest.TestCase):
         logger.critical("critical")
 
         with open('mock/test.log') as f:
-            self.assertTrue(len(f.readlines())==4)
+            self.assertTrue(len(f.readlines()) == 4)
 
     def tearDown(self):
         os.remove('mock/test.log')
         os.removedirs('mock/')
+
 
 if __name__ == "__main__":
     unittest.main()
