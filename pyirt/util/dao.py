@@ -23,7 +23,7 @@ def loadFromTuples(data):
 
     return user_ids, item_ids, ans_tags
 
-def loadFromHandle(self, fp, sep=','):
+def loadFromHandle(fp, sep=','):
     # Default format is comma separated files,
     # Only int is allowed within the environment
     user_ids = []
