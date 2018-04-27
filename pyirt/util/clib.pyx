@@ -25,9 +25,6 @@ def log_likelihood_2PL_gradient(double y1,
                                 double beta,
                                 double c=0.0):
     # It is the gradient of the log likelihood, not the NEGATIVE log likelihood
-    cdef extern from "math.h":
-        double exp(double x)
-
     grad = np.zeros(2)
 
     temp = exp(beta + alpha * theta)
