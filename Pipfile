@@ -7,7 +7,14 @@ name = "pypi"
 
 [dev-packages]
 
+ipdb = "*"
 
 
 [packages]
 
+numpy = "*"
+scipy = "*"
+tqdm = "*"
+cython = "*"
+six = "*"
+pymongo = "*"
