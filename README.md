@@ -35,6 +35,31 @@ guessParamDict = {1:{'c':0.0}, 2:{'c':0.25}}
 item_param, user_param = irt(src_fp, in_guess_param = guessParamDict)
 ```
 
+# MongoDb Integration
+
+When dealing with big data, the memory limit of the single machine is usually the bottle neck.
+
+pyirt ships with a pymongo integration that can handle millions of record (we tried 1 billion).
+
+The mongo db connection config is in "settings.ini", whose format is the same as "settings.ini.example"
+
+For usage, see
+```python
+python -m unittest tests.test_dao.TestDataSrc.test_from_mongo
+```
+
+
+# Installation
+
+When install from github source code
+
+```python
+pipenv --three
+pipenv install --dev
+pipenv shell
+python setup.py install
+```
+
 
 I.Model Specification
 ===================
