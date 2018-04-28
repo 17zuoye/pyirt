@@ -53,7 +53,7 @@ python -m unittest tests.test_dao.TestDataSrc.test_from_mongo
 
 When install from github source code
 
-```python
+```shell
 pipenv --three
 pipenv install --dev
 pipenv shell
