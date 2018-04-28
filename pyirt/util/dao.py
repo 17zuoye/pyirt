@@ -7,7 +7,7 @@ It is set in this way to deal with the sparsity in the massive dataset.
 
 '''
 import numpy as np
-import os
+
 
 def loadFromTuples(data):
     user_ids = []
@@ -23,7 +23,8 @@ def loadFromTuples(data):
 
     return user_ids, item_ids, ans_tags
 
-def loadFromHandle(self, fp, sep=','):
+
+def loadFromHandle(fp, sep=','):
     # Default format is comma separated files,
     # Only int is allowed within the environment
     user_ids = []
@@ -38,6 +39,7 @@ def loadFromHandle(self, fp, sep=','):
         item_ids.append(item_id_str)
         ans_tags.append(int(ans_tagstr))
     return user_ids, item_ids, ans_tags
+
 
 def parse_item_paramer(item_param_dict, output_file=None):
 
@@ -60,16 +62,9 @@ def parse_item_paramer(item_param_dict, output_file=None):
 def construct_ref_dict(in_list):
     # map the in_list to a numeric variable from 0 to N
     unique_elements = list(set(in_list))
-    element_idxs =  range(len(unique_elements))
+    element_idxs = range(len(unique_elements))
     idx_ref = dict(zip(unique_elements, element_idxs))
     reverse_idx_ref = dict(zip(element_idxs, unique_elements))
     out_idx_list = [idx_ref[x] for x in in_list]
 
     return out_idx_list, idx_ref, reverse_idx_ref
-
-
-'''
-Build a data storage facility that allows for memory dict and diskdb dict
-'''
-
-

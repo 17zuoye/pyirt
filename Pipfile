@@ -8,6 +8,9 @@ name = "pypi"
 [dev-packages]
 
 ipdb = "*"
+nose = "*"
+"flake8" = "*"
+coverage = "*"
 
 
 [packages]

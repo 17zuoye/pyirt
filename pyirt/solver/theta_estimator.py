@@ -86,7 +86,8 @@ class MLE_estimator(object):
         self.worker.set_initial_guess(0.0)
         try:
             est_theta = self.worker.solve_param_gradient(is_constrained=True)
-        except:
+        except Exception as e:
             est_theta = self.worker.solve_param_linear(is_constrained=True)
+
         # the output is an numpy array!
         return est_theta[0]
