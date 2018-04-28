@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import os
 import sys
 RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -9,7 +8,7 @@ import unittest
 from pyirt.solver import optimizer
 from pyirt.util import tools
 import numpy as np
-import json
+
 
 class TestItemSolverNoGuess(unittest.TestCase):
     '''
@@ -38,7 +37,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
         # the response format follows the solver API
         response_data = [y1, y0]
         cls.init_theta_vec = theta_vec
-        
+
         cls.solver = optimizer.irt_2PL_Optimizer()
         cls.solver.load_res_data(response_data)
         cls.solver.set_c(0)
@@ -47,15 +46,15 @@ class TestItemSolverNoGuess(unittest.TestCase):
     def test_linear_unconstrained(self):
         self.solver.set_theta(self.init_theta_vec)
         self.solver.set_initial_guess((0.0, 1.0))
-        
+
         est_param = self.solver.solve_param_linear(is_constrained=False)
-        self.assertTrue(abs(est_param[0] - self.beta)<0.01)
-        self.assertTrue(abs(est_param[1] - self.alpha)<0.02)
-        
+        self.assertTrue(abs(est_param[0] - self.beta) < 0.01)
+        self.assertTrue(abs(est_param[1] - self.alpha) < 0.02)
+
     def test_linear_constrained(self):
         self.solver.set_theta(self.init_theta_vec)
         self.solver.set_initial_guess((0.0, 1.0))
-        
+
         est_param = self.solver.solve_param_linear(is_constrained=True)
         self.assertTrue(abs(est_param[0] - self.beta) < 0.01)
         self.assertTrue(abs(est_param[1] - self.alpha) < 0.02)
@@ -63,7 +62,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
     def test_gradient_unconstrained(self):
         self.solver.set_theta(self.init_theta_vec)
         self.solver.set_initial_guess((0.0, 1.0))
-        
+
         est_param = self.solver.solve_param_gradient(is_constrained=False)
         self.assertTrue(abs(est_param[0] - self.beta) < 0.01)
         self.assertTrue(abs(est_param[1] - self.alpha) < 0.02)
@@ -71,7 +70,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
     def test_gradient_constrained(self):
         self.solver.set_theta(self.init_theta_vec)
         self.solver.set_initial_guess((0.0, 1.0))
-         
+
         est_param = self.solver.solve_param_gradient(is_constrained=True)
         self.assertTrue(abs(est_param[0] - self.beta) < 0.01)
         self.assertTrue(abs(est_param[1] - self.alpha) < 0.02)
@@ -92,6 +91,7 @@ class TestItemSolverNoGuess(unittest.TestCase):
         self.solver.solve_param_mix(is_constrained=True)
         self.assertTrue(bool("solve_param_mix has no exception!"))
 
+
 class TestUserSolver(unittest.TestCase):
     '''
     用户参数估计相对误差较大，大约是1.57
@@ -102,7 +102,7 @@ class TestUserSolver(unittest.TestCase):
         n = 1000
         cls.theta = 1.5
         np.random.seed(20170807)
-        alpha_vec = np.random.random(n) + 1 # 1-2 
+        alpha_vec = np.random.random(n) + 1  # 1-2
         beta_vec = np.random.normal(loc=0.0, scale=2.0, size=n)
         c_vec = np.zeros(n)
         y1 = []
@@ -125,27 +125,27 @@ class TestUserSolver(unittest.TestCase):
         cls.solver.load_res_data(response_data)
         cls.solver.set_item_parameter(alpha_vec, beta_vec, c_vec)
         cls.solver.set_bounds([(-4, 4)])
-    
+
     def test_linear_unconstrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_linear(is_constrained=False)
         self.assertTrue(abs(est_param - self.theta) < 0.1)  # orig is 0.1
-    
+
     def test_linear_constrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_linear(is_constrained=True)
         self.assertTrue(abs(est_param - self.theta) < 0.1)  # orig is 0.1
-    
+
     def test_gradient_unconstrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_gradient(is_constrained=False)
         self.assertTrue(abs(est_param - self.theta) < 0.1)  # orig is 0.1
-    
+
     def test_gradient_constrained(self):
         self.solver.set_initial_guess(0.0)
         est_param = self.solver.solve_param_gradient(is_constrained=True)
         self.assertTrue(abs(est_param - self.theta) < 0.1)  # orig is 0.1
-    
+
     def test_hessian(self):
         # unconstrained
         self.solver.set_initial_guess(0.0)
@@ -155,9 +155,10 @@ class TestUserSolver(unittest.TestCase):
     def test_scalar(self):
         # constrained
         self.solver.set_initial_guess(0.0)
-        self.solver.set_bounds((-4,4))
+        self.solver.set_bounds((-4, 4))
         est_param = self.solver.solve_param_scalar()
         self.assertTrue(abs(est_param - self.theta) < 0.1)  # orig is 0.1
+
 
 if __name__ == '__main__':
     unittest.main()

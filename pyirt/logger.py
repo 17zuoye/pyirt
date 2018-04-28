@@ -5,7 +5,7 @@ import os
 
 class Logger():
     @staticmethod
-    def logger(log_path):   
+    def logger(log_path):
         if log_path is not None:
             log_dir = os.path.dirname(log_path)
             if not os.path.exists(log_dir):
@@ -24,7 +24,7 @@ class Logger():
 
         # 创建一个handler，用于输出到控制台
         console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG) 
+        console.setLevel(logging.DEBUG)
 
         logger = logging.getLogger()
         # 给logger添加handler

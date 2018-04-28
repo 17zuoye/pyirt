@@ -1,0 +1,23 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[dev-packages]
+
+ipdb = "*"
+nose = "*"
+"flake8" = "*"
+coverage = "*"
+
+
+[packages]
+
+numpy = "*"
+scipy = "*"
+tqdm = "*"
+cython = "*"
+six = "*"
+pymongo = "*"

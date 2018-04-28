@@ -25,8 +25,9 @@ class TestLogger(unittest.TestCase):
             self.assertTrue(len(f.readlines()) == 4)
 
     def tearDown(self):
-        os.remove('mock/test.log')
-        os.removedirs('mock/')
+        if os.path.exists('mock/test.log'):
+            os.remove('mock/test.log')
+            os.removedirs('mock/')
 
 
 if __name__ == "__main__":

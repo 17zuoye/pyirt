@@ -8,7 +8,6 @@ from ..util import clib, tools
 np.seterr(over='raise')
 
 
-
 class irt_2PL_Optimizer(object):
 
     def load_res_data(self, res_data):
@@ -126,7 +125,7 @@ class irt_2PL_Optimizer(object):
         # * linear is more robust than gradient.
         try:
             est_param = self.solve_param_gradient(is_constrained)
-        except:
+        except Exception as est_e:
             # if the alogrithm is nelder-mead and the optimization fails to
             # converge, use the constrained version
             #
@@ -138,6 +137,7 @@ class irt_2PL_Optimizer(object):
                     est_param = self.solve_param_linear(True)
                 else:
                     raise e
+        # TODO: handle multiple attempt better
         return est_param
 
 
