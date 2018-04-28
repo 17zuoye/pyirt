@@ -20,7 +20,6 @@ from ..algo import update_theta_distribution
 from datetime import datetime
 import multiprocessing as mp
 from tqdm import tqdm
-import sys
 
 
 def procs_operator(procs, TIMEOUT, check_interval):
@@ -310,16 +309,13 @@ class IRT_MMLE_2PL(object):
         def update(d, start_idx, end_idx):
             try:
                 if self.dao_type == 'db':
-                    client = self.dao.open_conn()
-                    user2item_conn = client[self.dao.db_name][self.dao.user2item_collection_name]
+                    user2item_conn = self.dao.open_conn('user2item')
                 for user_idx in tqdm(range(start_idx, end_idx)):
                     if self.dao_type == 'db':
                         logs = self.dao.get_log(user_idx, user2item_conn)
                     else:
                         logs = self.dao.get_log(user_idx)
                     d[user_idx] = update_theta_distribution(logs, self.num_theta, self.theta_prior_val, self.theta_density, self.item_param_dict)
-                if self.dao_type == 'db':
-                    client.close()
             except Exception as e:
                 self.logger.critical("Unexpected error:", str(e))
                 raise e
@@ -363,8 +359,7 @@ class IRT_MMLE_2PL(object):
         def update(d, start_idx, end_idx):
             try:
                 if self.dao_type == 'db':
-                    client = self.dao.open_conn()
-                    item2user_conn = client[self.dao.db_name][self.dao.item2user_collection_name]
+                    item2user_conn = self.dao.open_conn('item2user')
                 for item_idx in tqdm(range(start_idx, end_idx)):
                     if self.dao_type == 'db':
                         map_user_idx_vec = self.dao.get_map(item_idx, ['1', '0'], item2user_conn)
@@ -374,8 +369,6 @@ class IRT_MMLE_2PL(object):
                             1: np.sum(self.posterior_theta_distr[map_user_idx_vec[0], :], axis=0),
                             0: np.sum(self.posterior_theta_distr[map_user_idx_vec[1], :], axis=0)
                             }
-                if self.dao_type == 'db':
-                    client.close()
             except Exception as e:
                 self.logger.critical("Unexpected error:", str(e))
                 raise e
@@ -413,9 +406,7 @@ class IRT_MMLE_2PL(object):
         def update(tot_llk, cnt, start_idx, end_idx):
             try:
                 if self.dao_type == 'db':
-                    client = self.dao.open_conn()
-                    user2item_conn = client[self.dao.db_name][self.dao.user2item_collection_name]
-
+                    user2item_conn = self.dao.open_conn('user2item')
                 for user_idx in tqdm(range(start_idx, end_idx)):
                     theta = theta_vec[user_idx]
                     # find all the item_id
@@ -437,9 +428,6 @@ class IRT_MMLE_2PL(object):
                         tot_llk.value += ell / len(logs)
                     with cnt.get_lock():
                         cnt.value += 1
-
-                if self.dao_type == 'db':
-                    client.close()
             except Exception as e:
                 self.logger.critical("Unexpected error:", str(e))
                 raise e

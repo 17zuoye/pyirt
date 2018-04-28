@@ -2,11 +2,37 @@
 import io
 import time
 from collections import defaultdict
-
-from .util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
 import pymongo
 from datetime import datetime
 import numpy as np
+from decouple import config
+from .util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
+
+
+MONGO_USER_NAME = config('MONGO_USER_NAME')
+MONGO_PASSWORD = config('MONGO_PASSWORD')
+MONGO_ADDRESS = config('MONGO_ADDRESS')
+MONGO_AUTH_SOURCE = config('MONGO_AUTH_SOURCE')
+MONGO_DB_NAME = config('MONGO_DB_NAME')
+
+
+class mongoDb(object):
+    """ cannot use singleton design, otherwise gets 'Warning: MongoClient opened before fork. Create MongoClient only after forking.'
+    """
+    def __init__(self):
+        mongouri = 'mongodb://{un}:{pw}@{addr}'.format(un=MONGO_USER_NAME, pw=MONGO_PASSWORD, addr=MONGO_ADDRESS)
+        if MONGO_AUTH_SOURCE:
+            mongouri += '/?authsource={auth_src}'.format(auth_src=MONGO_AUTH_SOURCE)
+        # connect
+        try:
+            self.client = pymongo.MongoClient(mongouri, connect=False, serverSelectionTimeoutMS=10, waitQueueTimeoutMS=100, readPreference='secondaryPreferred')
+        except Exception as e:
+            raise e
+        self.user2item_conn = self.client[MONGO_DB_NAME]['irt_user2item']
+        self.item2user_conn = self.client[MONGO_DB_NAME]['irt_item2user']
+
+    def __del__(self):
+        self.client.close()
 
 
 def search_filter(search_id, gid):
@@ -14,23 +40,12 @@ def search_filter(search_id, gid):
 
 
 class mongoDAO(object):
-    # NOTE: mongoDAO不使用runtime的logger体系
-
-    def __init__(self, connect_config, group_id=1, is_msg=False):
-
-        self.connect_config = connect_config
-
-        client = self.open_conn()
-        self.db_name = connect_config['db']
-
-        self.user2item_collection_name = 'irt_user2item'
-        self.item2user_collection_name = 'irt_item2user'
-
-        user2item_conn = client[self.db_name][self.user2item_collection_name]
-        item2user_conn = client[self.db_name][self.item2user_collection_name]
-
-        user_ids = list(set([x['id'] for x in user2item_conn.find({'gid': group_id}, {'id': 1})]))
-        item_ids = list(set([x['id'] for x in item2user_conn.find({'gid': group_id}, {'id': 1})]))
+    # NOTE: mongoDAO does not use the runtime logger
+    # NOTE: The client and the connection is not passed by self because of parallel processing
+    def __init__(self, group_id=1, is_msg=False):
+        db = mongoDb()
+        user_ids = list(set([x['id'] for x in db.user2item_conn.find({'gid': group_id}, {'id': 1})]))
+        item_ids = list(set([x['id'] for x in db.item2user_conn.find({'gid': group_id}, {'id': 1})]))
 
         _, self.user_idx_ref, self.user_reverse_idx_ref = construct_ref_dict(user_ids)
         _, self.item_idx_ref, self.item_reverse_idx_ref = construct_ref_dict(item_ids)
@@ -40,23 +55,13 @@ class mongoDAO(object):
         self.gid = group_id
         self.is_msg = is_msg
 
-        client.close()
-
-    def open_conn(self):
-
-        user_name = self.connect_config['user']
-        password = self.connect_config['password']
-        address = self.connect_config['address']  # IP:PORT
-        if 'authsource' not in self.connect_config:
-            mongouri = 'mongodb://{un}:{pw}@{addr}'.format(un=user_name, pw=password, addr=address)
+    def open_conn(self, name):
+        if name == "item2user":
+            return mongoDb().item2user_conn
+        elif name == "user2item":
+            return mongoDb().user2item_conn
         else:
-            authsource = self.connect_config['authsource']
-            mongouri = 'mongodb://{un}:{pw}@{addr}/?authsource={auth_src}'.format(un=user_name, pw=password, addr=address, auth_src=authsource)
-        try:
-            client = pymongo.MongoClient(mongouri, connect=False, serverSelectionTimeoutMS=10, waitQueueTimeoutMS=100, readPreference='secondaryPreferred')
-        except Exception as e:
-            raise e
-        return client
+            raise ValueError('conn name must be either item2user or user2item')
 
     def get_num(self, name):
         if name not in ['user', 'item']:
@@ -171,13 +176,13 @@ class localDataBase(object):
         start_time = time.time()
         self._process_data(user_idx_vec, item_idx_vec, ans_tags)
         if msg:
-            logger.debug("--- Process: %f secs ---" % np.round((time.time() - start_time)))
+            self.logger.debug("--- Process: %f secs ---" % np.round((time.time() - start_time)))
 
         # initialize some intermediate variables used in the E step
         start_time = time.time()
         self._init_item2user_map()
         if msg:
-            logger.debug("--- Sparse Mapping: %f secs ---" % np.round((time.time() - start_time)))
+            self.logger.debug("--- Sparse Mapping: %f secs ---" % np.round((time.time() - start_time)))
 
     '''
     Need the following dictionary for esitmation routine

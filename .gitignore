@@ -89,3 +89,4 @@ docs/_build/
 # compiled by cpython, see it at setup.py
 pyirt/utl/clib.c
 sandbox/
+settings.ini

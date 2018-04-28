@@ -20,8 +20,10 @@ def irt(data_src,
     logger.info("start loading data")
     if dao_type == 'memory':
         dao_instance = localDAO(data_src, logger)
-    else:
+    elif dao_type == "db":
         dao_instance = data_src
+    else:
+        raise ValueError("dao type needs to be either memory or db")
     logger.info("data loaded")
 
     # setup the model
