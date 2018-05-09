@@ -17,9 +17,7 @@ When install from github source code
 
 ```shell
 pipenv --three
-pipenv install --dev
-pipenv shell
-python setup.py install
+make
 ```
 
 # Demo
