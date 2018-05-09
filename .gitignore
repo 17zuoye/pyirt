@@ -90,3 +90,4 @@ docs/_build/
 pyirt/utl/clib.c
 sandbox/
 settings.ini
+settings.ini.test
