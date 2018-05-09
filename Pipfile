@@ -1,6 +1,6 @@
 [[source]]
 
-url = "https://pypi.python.org/simple"
+url = "https://mirrors.aliyun.com/pypi/simple/"
 verify_ssl = true
 name = "pypi"
 
@@ -19,6 +19,5 @@ numpy = "*"
 scipy = "*"
 tqdm = "*"
 cython = "*"
-six = "*"
 pymongo = "*"
 python-decouple = "*"

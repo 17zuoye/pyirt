@@ -21,7 +21,8 @@ setup(
                       'cython',
                       'six',
                       'pymongo',
-                      'tqdm'],
+                      'tqdm',
+                      'python-decouple'],
 
     package_data={'pyirt': ["*.pyx"]},
 

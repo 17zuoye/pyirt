@@ -5,7 +5,7 @@ import sys
 RootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(RootDir)
 from pyirt import irt
-from pyirt.dao import mongoDAO, mongoDb
+# from pyirt.dao import mongoDAO, mongoDb
 import numpy as np
 
 
@@ -33,7 +33,7 @@ class TestDataSrc(unittest.TestCase):
                 uid, qid, ans = line.strip().split(',')
                 data.append((int(uid), int(qid), int(ans)))
         item_param, user_param = irt(data, max_iter=2)
-
+    """
     def test_from_mongo(self):
         # setup
         gid = 1001
@@ -59,6 +59,6 @@ class TestDataSrc(unittest.TestCase):
         # tear down
         db.item2user_conn.remove({"gid": gid})
         db.user2item_conn.remove({"gid": gid})
-
+    """
     def tearDown(self):
         os.remove(self.data_src)
