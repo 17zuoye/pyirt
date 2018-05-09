@@ -5,15 +5,14 @@ from collections import defaultdict
 import pymongo
 from datetime import datetime
 import numpy as np
-from decouple import config
 from .util.dao import loadFromHandle, loadFromTuples, construct_ref_dict
 
-
-MONGO_USER_NAME = config('MONGO_USER_NAME')
-MONGO_PASSWORD = config('MONGO_PASSWORD')
-MONGO_ADDRESS = config('MONGO_ADDRESS')
-MONGO_AUTH_SOURCE = config('MONGO_AUTH_SOURCE')
-MONGO_DB_NAME = config('MONGO_DB_NAME')
+from decouple import config
+MONGO_USER_NAME = config('MONGO_USER_NAME', default="")
+MONGO_PASSWORD = config('MONGO_PASSWORD', default="")
+MONGO_ADDRESS = config('MONGO_ADDRESS', default="")
+MONGO_AUTH_SOURCE = config('MONGO_AUTH_SOURCE', default="")
+MONGO_DB_NAME = config('MONGO_DB_NAME', default="")
 
 
 class mongoDb(object):

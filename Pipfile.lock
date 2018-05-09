@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "58c3b7c1a7c3c7c009cc102003866752da1861ade6dfa90401035e6c64f820cc"
+            "sha256": "a10dc0b8fa27ead64eb3c2cf603c3105e03254b68c6feda98dbfe8e0af90cbc7"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -57,6 +57,14 @@
             "hashes": [],
             "version": "==0.1.0"
         },
+        "certifi": {
+            "hashes": [],
+            "version": "==2018.4.16"
+        },
+        "chardet": {
+            "hashes": [],
+            "version": "==3.0.4"
+        },
         "coverage": {
             "hashes": [],
             "version": "==4.5.1"
@@ -68,6 +76,10 @@
         "flake8": {
             "hashes": [],
             "version": "==3.5.0"
+        },
+        "idna": {
+            "hashes": [],
+            "version": "==2.6"
         },
         "ipdb": {
             "hashes": [],
@@ -106,6 +118,10 @@
             "hashes": [],
             "version": "==0.7.4"
         },
+        "pkginfo": {
+            "hashes": [],
+            "version": "==1.4.2"
+        },
         "prompt-toolkit": {
             "hashes": [],
             "version": "==1.0.15"
@@ -126,6 +142,14 @@
             "hashes": [],
             "version": "==2.2.0"
         },
+        "requests": {
+            "hashes": [],
+            "version": "==2.18.4"
+        },
+        "requests-toolbelt": {
+            "hashes": [],
+            "version": "==0.8.0"
+        },
         "simplegeneric": {
             "hashes": [],
             "version": "==0.8.1"
@@ -134,9 +158,21 @@
             "hashes": [],
             "version": "==1.11.0"
         },
+        "tqdm": {
+            "hashes": [],
+            "version": "==4.23.3"
+        },
         "traitlets": {
             "hashes": [],
             "version": "==4.3.2"
+        },
+        "twine": {
+            "hashes": [],
+            "version": "==1.11.0"
+        },
+        "urllib3": {
+            "hashes": [],
+            "version": "==1.22"
         },
         "wcwidth": {
             "hashes": [],

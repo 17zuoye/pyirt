@@ -11,6 +11,7 @@ ipdb = "*"
 nose = "*"
 "flake8" = "*"
 coverage = "*"
+twine = "*"
 
 
 [packages]
