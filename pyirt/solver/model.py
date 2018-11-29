@@ -12,6 +12,7 @@ The current version only deals with unidimension theta
 import numpy as np
 from scipy.stats import norm
 import time
+from copy import deepcopy
 
 from ..util import clib, tools
 from ..solver import optimizer
@@ -266,7 +267,7 @@ class IRT_MMLE_2PL(object):
                 self.logger.info('EM does not converge within max iteration')
                 return True
             if self.num_iter != 1:
-                self.last_item_param_dict = self.item_param_dict
+                self.last_item_param_dict = deepcopy(self.item_param_dict)
             return False
 
     def _init_solver_param(self, is_constrained, boundary, solver_type, max_iter, tol):
