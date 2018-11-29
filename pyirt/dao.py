@@ -147,7 +147,14 @@ class localDAO(object):
 
     def get_map(self, item_idx, ans_key_list):
         # NOTE: return empty list for invalid ans key
-        return [self.database.item2user_map[str(ans_key)][item_idx] for ans_key in ans_key_list]
+        results = []
+        for ans_key in ans_key_list:
+            try:
+                results.append(self.database.item2user_map[str(ans_key)][item_idx])
+            except KeyError:
+                results.append([])
+        # return [self.database.item2user_map[str(ans_key)][item_idx] for ans_key in ans_key_list]
+        return results
 
     def close_conn(self):
         pass
