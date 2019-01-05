@@ -40,7 +40,7 @@ class bayesian_estimator(object):
                 alpha = log[1][0]
                 beta = log[1][1]
                 c = log[1][2]
-                ell += clib.log_likelihood_2PL(atag, 1.0 - atag, theta, alpha, beta, c)
+                ell += clib.log_likelihood(atag, 1.0 - atag, theta, alpha, beta, c)
             # now update the density
             likelihood_vec[k] = ell
 

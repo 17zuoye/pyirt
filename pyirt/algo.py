@@ -25,7 +25,7 @@ def update_theta_distribution(data, num_theta, theta_prior_val, theta_density, i
             alpha = item_param_dict[item_idx]['alpha']
             beta = item_param_dict[item_idx]['beta']
             c = item_param_dict[item_idx]['c']
-            ell += clib.log_likelihood_2PL(0.0 + ans_tag, 1.0 - ans_tag, theta, alpha, beta, c)
+            ell += clib.log_likelihood(0.0 + ans_tag, 1.0 - ans_tag, theta, alpha, beta, c)
         likelihood_vec[k] = ell
 
     # posterior

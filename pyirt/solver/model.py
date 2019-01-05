@@ -44,7 +44,7 @@ def procs_operator(procs, TIMEOUT, check_interval):
     return procs
 
 
-class IRT_MMLE_2PL(object):
+class IRT_MMLE(object):
 
     '''
     Exposed methods
@@ -56,7 +56,9 @@ class IRT_MMLE_2PL(object):
             dao_instance, logger,
             dao_type='memory',
             is_parallel=False, num_cpu=6, check_interval=60,
-            mode='debug'):
+            mode='debug',
+            model_spec='2PL'):
+        logger.debug(f'IRT_MMLE: {model_spec}')
         # interface to data
         self.dao = dao_instance
         self.dao_type = dao_type
@@ -69,13 +71,18 @@ class IRT_MMLE_2PL(object):
         self.num_cpu = min(num_cpu, mp.cpu_count())
         self.check_interval = check_interval
         self.mode = mode
+        self.model_spec = model_spec
 
-    def set_options(self, theta_bnds, num_theta, alpha_bnds, beta_bnds, max_iter, tol):
+    def set_options(self, theta_bnds, num_theta, alpha_bnds, beta_bnds, c_bnds, max_iter, tol):
         #  user
         self.num_theta = num_theta
         self._init_user_param(theta_bnds[0], theta_bnds[1], num_theta)
         # item
-        boundary = {'alpha': alpha_bnds, 'beta': beta_bnds}
+        boundary = {
+            'alpha': alpha_bnds, 
+            'beta': beta_bnds, 
+            'c': c_bnds
+        }
         # solver
         solver_type = 'gradient'
         is_constrained = True
@@ -169,8 +176,14 @@ class IRT_MMLE_2PL(object):
         def update(d, start_idx, end_idx):
             try:
                 for item_idx in tqdm(range(start_idx, end_idx)):
-                    initial_guess_val = (self.item_param_dict[item_idx]['beta'],
-                                        self.item_param_dict[item_idx]['alpha'])
+                    if self.model_spec == '3PL':
+                        initial_guess_val = (self.item_param_dict[item_idx]['beta'],
+                                             self.item_param_dict[item_idx]['alpha'],
+                                             self.item_param_dict[item_idx]['c'])
+                    else:
+                        initial_guess_val = (self.item_param_dict[item_idx]['beta'],
+                                             self.item_param_dict[item_idx]['alpha'])
+
                     opt_worker.set_initial_guess(initial_guess_val)  # the value is a mix of 1/0 and current estimate
                     opt_worker.set_c(self.item_param_dict[item_idx]['c'])
 
@@ -195,11 +208,19 @@ class IRT_MMLE_2PL(object):
                 self.logger.critical("Unexpected error:", str(e))
                 raise e
         # [A] max for item parameter
-        opt_worker = optimizer.irt_2PL_Optimizer()
+        opt_worker = optimizer.irt_Optimizer(model_spec=self.model_spec)
         # the boundary is universal
         # the boundary is set regardless of the constrained option because the
         # constrained search serves as backup for outlier cases
-        opt_worker.set_bounds([self.beta_bnds, self.alpha_bnds])
+
+        if self.model_spec == '2PL':
+            bounds = [self.beta_bnds, self.alpha_bnds]
+        elif self.model_spec == '3PL':
+            bounds = [self.beta_bnds, self.alpha_bnds, self.c_bnds]
+        else:
+            raise Exception
+
+        opt_worker.set_bounds(bounds)
 
         # theta value is universal
         opt_worker.set_theta(self.theta_prior_val)
@@ -230,7 +251,7 @@ class IRT_MMLE_2PL(object):
             self.item_param_dict[item_idx] = {
                     'beta': procs_repo[item_idx][0],
                     'alpha': procs_repo[item_idx][1],
-                    'c': self.item_param_dict[item_idx]['c']
+                    'c': self.item_param_dict[item_idx]['c'] if self.model_spec != '3PL' else procs_repo[item_idx][2]
                 }
 
         # [B] max for theta density
@@ -275,6 +296,7 @@ class IRT_MMLE_2PL(object):
         self.is_constrained = is_constrained
         self.alpha_bnds = boundary['alpha']
         self.beta_bnds = boundary['beta']
+        self.c_bnds = boundary['c']
         self.solver_type = solver_type
         self.max_iter = max_iter
         self.tol = tol
@@ -424,7 +446,7 @@ class IRT_MMLE_2PL(object):
                         alpha = self.item_param_dict[item_idx]['alpha']
                         beta = self.item_param_dict[item_idx]['beta']
                         c = self.item_param_dict[item_idx]['c']
-                        ell += clib.log_likelihood_2PL(0.0 + ans_tag, 1.0 - ans_tag, theta, alpha, beta, c)
+                        ell += clib.log_likelihood(0.0 + ans_tag, 1.0 - ans_tag, theta, alpha, beta, c)
                     with tot_llk.get_lock():
                         tot_llk.value += ell / len(logs)
                     with cnt.get_lock():

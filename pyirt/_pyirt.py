@@ -7,7 +7,7 @@ from .logger import Logger
 def irt(data_src,
         dao_type='memory',
         theta_bnds=[-4, 4], num_theta=11,
-        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], in_guess_param={},
+        alpha_bnds=[0.25, 2], beta_bnds=[-2, 2], c_bnds=[0, .5], in_guess_param={},
         model_spec='2PL',
         max_iter=10, tol=1e-3, nargout=2,
         is_parallel=False, num_cpu=6, check_interval=60,
@@ -27,19 +27,20 @@ def irt(data_src,
     logger.info("data loaded")
 
     # setup the model
-    if model_spec == '2PL':
-        mod = model.IRT_MMLE_2PL(dao_instance,
+    if model_spec in {'2PL', '3PL'}:
+        mod = model.IRT_MMLE(dao_instance,
                 logger,
                 dao_type=dao_type,
                 is_parallel=is_parallel,
                 num_cpu=num_cpu,
                 check_interval=check_interval,
-                mode=mode)
+                mode=mode,
+                model_spec=model_spec)
     else:
         raise Exception('Unknown model specification.')
 
     # specify the irt parameters
-    mod.set_options(theta_bnds, num_theta, alpha_bnds, beta_bnds, max_iter, tol)
+    mod.set_options(theta_bnds, num_theta, alpha_bnds, beta_bnds, c_bnds, max_iter, tol)
     mod.set_guess_param(in_guess_param)
 
     # solve

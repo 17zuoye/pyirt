@@ -24,7 +24,7 @@ def log_likelihood_factor_hessian(y1, y0, theta, alpha, beta, c=0.0):
     return hessian
 
 
-def log_likelihood_2PL_hessian(y1, y0, theta, alpha, beta, c=0.0):
+def log_likelihood_hessian(y1, y0, theta, alpha, beta, c=0.0):
     hessian = np.zeros((2, 2))
     x = np.exp(beta + alpha * theta)
     base = x / (1 + x) ** 2 * (y1 * (1 - c) * (c - x ** 2) / (c + x) ** 2 - y0)

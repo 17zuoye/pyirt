@@ -8,7 +8,10 @@ from ..util import clib, tools
 np.seterr(over='raise')
 
 
-class irt_2PL_Optimizer(object):
+class irt_Optimizer(object):
+
+    def __init__(self, model_spec='2PL'):
+        self.model_spec = model_spec
 
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
@@ -42,8 +45,8 @@ class irt_2PL_Optimizer(object):
         if sum(y1 < 0) > 0 or sum(y0 < 0) > 0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
-        likelihood_vec = [clib.log_likelihood_2PL(y1[i], y0[i], theta_vec[i],
-                                                  alpha, beta, c)
+        likelihood_vec = [clib.log_likelihood(y1[i], y0[i], theta_vec[i],
+                                              alpha, beta, c)
                           for i in range(num_data)]
         # transform into negative likelihood
         ell = -sum(likelihood_vec)
@@ -51,17 +54,17 @@ class irt_2PL_Optimizer(object):
         return ell
 
     @staticmethod
-    def _gradient(res_data, theta_vec, alpha, beta, c):
+    def _gradient(res_data, theta_vec, alpha, beta, c, model_spec):
         # res should be numpy array
         y1 = res_data[0]
         y0 = res_data[1]
         num_data = len(y1)
 
-        der = np.zeros(2)
+        der = np.zeros(3 if model_spec =='3PL' else 2)
         for i in range(num_data):
             # the toolbox calculate the gradient of the log likelihood,
             # but the algorithm needs that of the negative ll
-            der -= clib.log_likelihood_2PL_gradient(y1[i], y0[i], theta_vec[i], alpha, beta, c)
+            der -= clib.log_likelihood_gradient(y1[i], y0[i], theta_vec[i], alpha, beta, c, model_spec)
         return der
 
     def solve_param_linear(self, is_constrained):
@@ -92,16 +95,17 @@ class irt_2PL_Optimizer(object):
 
     def solve_param_gradient(self, is_constrained):
         # for now, temp set alpha to 1
-
         def target_fnc(x):
             beta = x[0]
             alpha = x[1]
-            return self._likelihood(self.res_data, self.theta, alpha, beta, self.c)
+            c = (self.c if self.model_spec == '2PL' else x[2])
+            return self._likelihood(self.res_data, self.theta, alpha, beta, c)
 
         def target_der(x):
             beta = x[0]
             alpha = x[1]
-            return self._gradient(self.res_data, self.theta, alpha, beta, self.c)
+            c = (self.c if self.model_spec == '2PL' else x[2])
+            return self._gradient(self.res_data, self.theta, alpha, beta, c, self.model_spec)
 
         if is_constrained:
             res = minimize(target_fnc, self.x0, method='L-BFGS-B',
@@ -114,7 +118,6 @@ class irt_2PL_Optimizer(object):
 
         if not res.success:
             raise Exception("Algorithm failed because " + res.message)
-
         return res.x
 
     def solve_param_mix(self, is_constrained=True):
@@ -142,6 +145,9 @@ class irt_2PL_Optimizer(object):
 
 
 class irt_factor_optimizer(object):
+
+    def __init__(self, model_spec='2PL'):
+        self.model_spec = model_spec
 
     def load_res_data(self, res_data):
         self.res_data = np.array(res_data)
@@ -175,8 +181,8 @@ class irt_factor_optimizer(object):
         if sum(y1 < 0) > 0 or sum(y0 < 0) > 0:
             raise ValueError('y1 or y0 contains negative count.')
         # this is the likelihood
-        likelihood_vec = [clib.log_likelihood_2PL(y1[i], y0[i], theta,
-                                                  alpha_vec[i], beta_vec[i], c_vec[i])
+        likelihood_vec = [clib.log_likelihood(y1[i], y0[i], theta,
+                                              alpha_vec[i], beta_vec[i], c_vec[i])
                           for i in range(num_data)]
         # transform into negative likelihood
         ell = -sum(likelihood_vec)
