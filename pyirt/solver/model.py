@@ -19,7 +19,7 @@ from ..solver import optimizer
 from ..algo import update_theta_distribution
 
 from datetime import datetime
-import multiprocessing as mp
+import multiprocess as mp
 from tqdm import tqdm
 
 

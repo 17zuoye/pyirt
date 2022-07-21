@@ -1,7 +1,7 @@
 sudo: false
 language: python
 python:
-    - "3.6"
+    - "3.7"
 notifications:
   email: junchen.feng@17zuoye.com
 install: "make" 
